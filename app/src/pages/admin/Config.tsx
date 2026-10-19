@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { getDevice, setDevice, getSetting, setSetting, db } from '../../lib/db';
 import { DEFAULT_THEME, PRIMARY_OPTIONS, SECONDARY_OPTIONS, applyTheme, resizeImage, type StoreInfo, type Theme } from '../../lib/theme';
 import { DEFAULT_SCALE, type ScaleConfig } from '../../lib/pdv';
-import { getSyncConfig, setSyncConfig, syncNow, testConnection } from '../../lib/sync';
+import { getSyncConfig, setSyncConfig, syncNow, testConnection, DEFAULT_SYNC_URL } from '../../lib/sync';
 import { makeBackup, listBackups, readBackup, importData, exportData, downloadText, desktop } from '../../lib/backup';
 import { dateTime } from '../../lib/format';
 import { useApp } from '../../lib/app-context';
@@ -138,7 +138,7 @@ function CaixaCfg() {
 }
 
 function Nuvem() {
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState(DEFAULT_SYNC_URL);
   const [key, setKey] = useState('');
   const [msg, setMsg] = useState('');
   const pending = useLiveQuery(() => db.outbox.count(), [], 0);
@@ -151,7 +151,7 @@ function Nuvem() {
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div className="spread"><h2 style={{ fontSize: 18 }}>Cloudflare (banco online)</h2><SyncBadge /></div>
       <p className="muted small" style={{ margin: 0 }}>O sistema funciona sem internet. Quando há conexão, ele envia as vendas e cadastros para a nuvem e recebe o que os outros caixas fizeram. Itens aguardando envio: <b>{pending}</b></p>
-      <div className="field"><label htmlFor="nu">Endereço do servidor</label><input id="nu" placeholder="https://vision-pdv-api.SEU-USUARIO.workers.dev" value={url} onChange={(e) => setUrl(e.target.value)} /></div>
+      <div className="field"><label htmlFor="nu">Endereço do servidor</label><input id="nu" value={url} onChange={(e) => setUrl(e.target.value)} /></div>
       <div className="field"><label htmlFor="nk">Chave de acesso</label><input id="nk" type="password" value={key} onChange={(e) => setKey(e.target.value)} /></div>
       {msg && <span className="chip">{msg}</span>}
       <div className="row" style={{ justifyContent: 'flex-end' }}>

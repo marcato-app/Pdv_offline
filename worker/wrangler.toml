@@ -1,13 +1,21 @@
-name = "vision-pdv-api"
+name = "vision-pdv"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
 
+routes = [
+  { pattern = "visionpdv.marcatoapp.com.br", custom_domain = true }
+]
+
+# O site (pasta app/dist) e o servidor ficam no mesmo endereço.
+[assets]
+directory = "../app/dist"
+binding = "ASSETS"
+
 [[d1_databases]]
 binding = "DB"
-database_name = "vision-pdv"
-# Troque pelo id que aparece ao rodar: npx wrangler d1 create vision-pdv
-database_id = "COLOQUE-AQUI-O-ID-DO-BANCO"
+database_name = "vision-pdv-db"
+database_id = "f4fa7665-92dd-4ee3-b1be-2fb1d086cce8"
 
 [vars]
 STORE_ID = "loja1"
-# A chave de acesso NÃO fica aqui. Cadastre com: npx wrangler secret put API_KEY
+# A chave de acesso NÃO fica aqui. Ela é cadastrada como segredo (API_KEY).

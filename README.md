@@ -8,7 +8,7 @@ Um único sistema roda em:
 
 | Onde | Como |
 | --- | --- |
-| **Site** | Cloudflare Pages (abre no navegador e funciona offline depois do primeiro acesso) |
+| **Site** | https://visionpdv.marcatoapp.com.br (funciona offline depois do primeiro acesso) |
 | **Windows** | Instalador `.exe` (Electron), com backup numa pasta do PC e impressão direta |
 | **Android** | App `.apk` (Capacitor) |
 | **iOS** | Projeto Xcode pronto em `app/ios` (precisa de um Mac e de conta Apple para publicar) |
@@ -44,28 +44,26 @@ app/       Sistema (React + Vite). Banco local: IndexedDB (Dexie).
   android/ Projeto Android (Capacitor)
   ios/     Projeto iOS (Capacitor)
 desktop/   App de Windows (Electron)
-worker/    Servidor da nuvem (Cloudflare Worker + D1)
+worker/    Servidor da nuvem (Cloudflare Worker + D1), que também entrega o site
 ```
 
-## 1. Colocar a nuvem no ar (Cloudflare)
+## 1. Nuvem e site (Cloudflare)
 
-Precisa ter uma conta grátis na Cloudflare e Node.js instalado.
+Tudo fica em **https://visionpdv.marcatoapp.com.br**: o site e o servidor que sincroniza os caixas.
+O banco `vision-pdv-db` já foi criado na conta da Cloudflare, com as tabelas.
 
-```bash
-cd worker
-npm install
-npx wrangler login
-npx wrangler d1 create vision-pdv        # copie o "database_id" que aparecer
-# cole o id em worker/wrangler.toml, no lugar de COLOQUE-AQUI-O-ID-DO-BANCO
-npm run db:init                           # cria a tabela no banco
-npx wrangler secret put API_KEY           # digite uma senha longa: é a "chave de acesso"
-npm run deploy                            # mostra o endereço, ex.: https://vision-pdv-api.SEU-USUARIO.workers.dev
-```
+A publicação é automática pelo GitHub (workflow **Publicar na Cloudflare**) sempre que a branch `main` muda.
+Ela precisa de 3 segredos em **Settings › Secrets and variables › Actions**:
 
-Depois, no sistema: **Configurações › Nuvem**, coloque o endereço e a chave, toque em **Testar conexão** e **Salvar**.
+| Segredo | O que é |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | Token criado na Cloudflare em *My Profile › API Tokens*, modelo **Edit Cloudflare Workers**, com permissão extra **D1: Edit** |
+| `CLOUDFLARE_ACCOUNT_ID` | ID da conta (aparece no painel da Cloudflare, na lateral da página *Workers & Pages*) |
+| `VISION_API_KEY` | Uma senha longa inventada por você. É a **chave de acesso** que os caixas usam |
 
+No sistema: **Configurações › Nuvem** já vem com o endereço. Basta colocar a chave, **Testar conexão** e **Salvar**.
 Para os outros caixas, celulares e tablets: na primeira tela escolha **Conectar a uma loja existente**
-e use o mesmo endereço e chave. Em **Configurações › Caixa**, dê um número diferente para cada caixa (01, 02, 03…).
+e use a mesma chave. Em **Configurações › Caixa**, dê um número diferente para cada caixa (01, 02, 03…).
 
 ## 2. Instaladores (Windows e Android)
 
@@ -75,11 +73,6 @@ Os instaladores são gerados pelo GitHub automaticamente:
 2. Ao terminar, o `.exe` (Windows) e o `.apk` (Android) ficam na página **Releases**.
 
 Também roda sozinho ao criar uma tag `v1.0.0`, `v1.0.1`…
-
-## 3. Site (Cloudflare Pages)
-
-Em **Settings › Secrets and variables › Actions** do repositório, crie `CLOUDFLARE_API_TOKEN` e
-`CLOUDFLARE_ACCOUNT_ID`. Depois rode **Actions › Publicar na Cloudflare**. Ele publica o servidor e o site.
 
 ## iOS
 

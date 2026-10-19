@@ -5,7 +5,7 @@ import { checkLogin, createUser, canManage } from '../lib/auth';
 import { setSetting } from '../lib/db';
 import { DEFAULT_THEME } from '../lib/theme';
 import { Logo, SyncBadge } from '../components/ui';
-import { setSyncConfig } from '../lib/sync';
+import { setSyncConfig, DEFAULT_SYNC_URL } from '../lib/sync';
 
 function Brand({ subtitle }: { subtitle?: string }) {
   const { store } = useApp();
@@ -81,7 +81,7 @@ export function Setup({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState('');
   const [login, setLogin] = useState('admin');
   const [pass, setPass] = useState('');
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState(DEFAULT_SYNC_URL);
   const [key, setKey] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -136,7 +136,7 @@ export function Setup({ onDone }: { onDone: () => void }) {
           ) : (
             <>
               <p className="muted small" style={{ margin: 0 }}>Use isto em um segundo caixa, celular ou tablet. Os dados da loja serão baixados da nuvem.</p>
-              <div className="field"><label htmlFor="j1">Endereço do servidor</label><input id="j1" placeholder="https://vision-pdv-api.SEU-USUARIO.workers.dev" value={url} onChange={(e) => setUrl(e.target.value)} /></div>
+              <div className="field"><label htmlFor="j1">Endereço do servidor</label><input id="j1" value={url} onChange={(e) => setUrl(e.target.value)} /></div>
               <div className="field"><label htmlFor="j2">Chave de acesso</label><input id="j2" type="password" value={key} onChange={(e) => setKey(e.target.value)} /></div>
             </>
           )}

@@ -3,6 +3,7 @@
 
 export interface Env {
   DB: D1Database;
+  ASSETS: Fetcher;
   API_KEY: string;
   STORE_ID: string;
 }
@@ -73,8 +74,11 @@ async function pull(env: Env, url: URL) {
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
-    if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     const url = new URL(req.url);
+    const isApi = url.pathname === '/health' || url.pathname.startsWith('/sync/');
+    // Tudo que não é da API é o site (arquivos da pasta app/dist).
+    if (!isApi) return env.ASSETS.fetch(req);
+    if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     if (!env.API_KEY) return json({ error: 'API_KEY não configurada no servidor' }, 500);
     if (!safeEqual(req.headers.get('x-api-key') || '', env.API_KEY)) return json({ error: 'Chave de acesso inválida' }, 401);
     try {

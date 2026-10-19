@@ -32,6 +32,9 @@ export interface SyncConfig {
   apiKey: string;
 }
 
+/** Endereço oficial da nuvem. No site, é o próprio endereço da página. */
+export const DEFAULT_SYNC_URL = 'https://visionpdv.marcatoapp.com.br';
+
 export async function getSyncConfig(): Promise<SyncConfig | null> {
   const cfg = await getDevice<SyncConfig | null>('sync', null);
   return cfg && cfg.url && cfg.apiKey ? cfg : null;
