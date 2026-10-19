@@ -1,0 +1,17 @@
+{
+  "name": "vision-pdv-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create vision-pdv",
+    "db:init": "wrangler d1 execute vision-pdv --remote --file=schema.sql",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20240925.0",
+    "typescript": "5.6.2",
+    "wrangler": "3.78.12"
+  }
+}

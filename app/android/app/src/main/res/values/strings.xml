@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Vision PDV</string>
+    <string name="title_activity_main">Vision PDV</string>
+    <string name="package_name">com.visionpdv.app</string>
+    <string name="custom_url_scheme">com.visionpdv.app</string>
+</resources>
