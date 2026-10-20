@@ -5,10 +5,14 @@ import { money, qtyFmt, PAYMENT_LABELS, startOfDay } from '../../lib/format';
 import { downloadText } from '../../lib/backup';
 import { Link } from 'react-router-dom';
 import { payApi } from '../../lib/payments';
+import { Onboarding } from '../../components/Onboarding';
+import { useApp } from '../../lib/app-context';
+import { canManage } from '../../lib/auth';
 
 const RANGES = { hoje: 'Hoje', '7': 'Últimos 7 dias', '30': 'Últimos 30 dias' } as const;
 
 export function Painel() {
+  const { user } = useApp();
   const [range, setRange] = useState<keyof typeof RANGES>('hoje');
   const from = range === 'hoje' ? startOfDay() : startOfDay() - (Number(range) - 1) * 86_400_000;
   const r = useLiveQuery(async () => {
@@ -68,6 +72,7 @@ export function Painel() {
           }}>Resumo no WhatsApp</button>
         </div>
       </div>
+      {canManage(user) && <Onboarding />}
       {alerts && (alerts.late.length > 0 || alerts.dueToday.length > 0 || alerts.pending > 0) && (
         <div className="row">
           {alerts.late.length > 0 && <Link to="/financeiro" className="chip danger" style={{ padding: 10, textDecoration: 'none' }}>{alerts.late.length} {alerts.late.length === 1 ? 'conta vencida' : 'contas vencidas'}</Link>}

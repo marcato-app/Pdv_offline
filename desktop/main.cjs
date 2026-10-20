@@ -5,7 +5,7 @@ const fs = require('fs');
 
 const KEEP = 30;
 // O app abre o sistema da nuvem (sempre atualizado). O próprio sistema guarda uma cópia para funcionar sem internet.
-const CLOUD = 'https://visionpdv.marcatoapp.com.br/';
+const CLOUD = process.env.VISION_URL || 'https://visionpdv.marcatoapp.com.br/'; // VISION_URL: só para testes
 const backupDir = () => path.join(app.getPath('documents'), 'VisionPDV', 'backups');
 const safeName = (n) => /^[\w.-]+\.json$/.test(n) ? n : null;
 
@@ -27,18 +27,27 @@ function createWindow() {
   // Balança no cabo serial/USB: libera o acesso e escolhe a porta automaticamente.
   const ses = win.webContents.session;
   ses.setPermissionCheckHandler((_wc, permission) => permission === 'serial' || permission === 'media' || permission === 'clipboard-sanitized-write');
+  // Câmera para ler código de barras.
+  ses.setPermissionRequestHandler((_wc, permission, cb) => cb(['media', 'clipboard-sanitized-write'].includes(permission)));
   ses.setDevicePermissionHandler((details) => details.deviceType === 'serial');
   ses.on('select-serial-port', (event, portList, _wc, callback) => {
     event.preventDefault();
     callback(portList.length ? portList[0].portId : '');
   });
   win.maximize();
+  win.webContents.setUserAgent(win.webContents.getUserAgent() + ' VisionPDVApp');
   win.loadURL(CLOUD);
   // Sem internet e sem cópia guardada (primeira abertura): mostra a tela de "conecte à internet".
   win.webContents.on('did-fail-load', (_e, code, _desc, url, isMain) => {
     if (isMain && code !== -3 && url.startsWith(CLOUD)) win.loadFile(path.join(__dirname, 'offline.html'));
   });
   // Links de outros sites abrem no navegador, não dentro do PDV.
+  // Ctrl+R recarrega; Ctrl+Shift+I abre a tela técnica (para o suporte ver erros).
+  win.webContents.on('before-input-event', (e, input) => {
+    if (input.type !== 'keyDown' || !input.control) return;
+    if (input.key.toLowerCase() === 'r' && !input.shift) { e.preventDefault(); win.webContents.reload(); }
+    if (input.key.toLowerCase() === 'i' && input.shift) { e.preventDefault(); win.webContents.toggleDevTools(); }
+  });
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
   win.webContents.on('will-navigate', (e, url) => {
     if (!url.startsWith(CLOUD) && !url.startsWith('file:')) { e.preventDefault(); shell.openExternal(url); }

@@ -183,8 +183,9 @@ function useAppSafe(): { setUser?: (u: import('../lib/db').User) => void } {
 }
 
 /** Página inicial: entrar com e-mail e senha, ou criar uma loja nova. */
-export function StartPage() {
-  const [mode, setMode] = useState<'enter' | 'create'>('enter');
+export function StartPage({ initialMode = 'enter' }: { initialMode?: 'enter' | 'create' }) {
+  const [mode, setMode] = useState<'enter' | 'create'>(initialMode);
+  const [terms, setTerms] = useState(false);
   const [storeName, setStoreName] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -205,6 +206,7 @@ export function StartPage() {
     if (phone.replace(/\D/g, '').length < 10) return setErr('Informe o WhatsApp com DDD');
     if (pass.length < 6) return setErr('A senha precisa de pelo menos 6 caracteres');
     if (pass !== pass2) return setErr('As duas senhas não são iguais');
+    if (!terms) return setErr('Para continuar, aceite os Termos de uso e a Política de privacidade');
     setBusy(true);
     try {
       const now = Date.now();
@@ -218,6 +220,7 @@ export function StartPage() {
           name: storeName.trim(),
           email: mail,
           phone: phone.trim(),
+          acceptedTerms: true,
           records: [
             rec('users', admin),
             rec('settings', { id: 'store', value: { name: storeName.trim(), phone: phone.trim() }, updatedAt: now, deleted: 0 } as { id: string }),
@@ -247,6 +250,10 @@ export function StartPage() {
           <TextField id="c9" label="WhatsApp (com DDD)" value={phone} onChange={setPhone} autoComplete="tel" />
           <PasswordField id="c5" label="Crie uma senha" value={pass} onChange={setPass} autoComplete="new-password" />
           <PasswordField id="c6" label="Repita a senha" value={pass2} onChange={setPass2} autoComplete="new-password" />
+          <label htmlFor="terms" className="row" style={{ flexWrap: 'nowrap', alignItems: 'flex-start', gap: 10, fontSize: 14, cursor: 'pointer' }}>
+            <input id="terms" type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} style={{ width: 20, height: 20, marginTop: 1, flex: '0 0 auto' }} />
+            <span>Li e aceito os <a href="/termos" target="_blank" rel="noreferrer">Termos de uso</a> e a <a href="/privacidade" target="_blank" rel="noreferrer">Política de privacidade</a>.</span>
+          </label>
           {err && <div className="error">{err}</div>}
           <button className="btn primary big" disabled={busy}>{busy ? 'Criando sua loja…' : 'Criar loja e começar'}</button>
           <button type="button" className="btn ghost" onClick={() => { setMode('enter'); setErr(''); }}>Já tenho conta: entrar</button>

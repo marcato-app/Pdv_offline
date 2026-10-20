@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useLicense, activateKey, STATUS_LABEL, type License } from '../lib/license';
+import { useLicense, activateKey, startCheckout, confirmPayment, STATUS_LABEL, type License } from '../lib/license';
+import { getPlatform, IS_NATIVE, whatsLink, type PlatformInfo } from '../lib/platform';
+import { money } from '../lib/format';
 import { dateOnly } from '../lib/format';
 import { useApp } from '../lib/app-context';
 import { canManage } from '../lib/auth';
@@ -28,6 +30,47 @@ export function ActivateBox({ lic }: { lic: License | null }) {
   const [code, setCode] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [plat, setPlat] = useState<PlatformInfo | null>(null);
+  const [opened, setOpened] = useState(false);
+  useEffect(() => { getPlatform().then(setPlat); }, []);
+
+  // Voltou do Mercado Pago com o número do pagamento: confere e ativa na hora.
+  useEffect(() => {
+    const q = new URLSearchParams(location.search);
+    const pid = q.get('payment_id') || q.get('collection_id');
+    if (!pid) return;
+    const st = q.get('status') || q.get('collection_status');
+    history.replaceState(null, '', location.pathname + '?aba=assinatura');
+    if (st === 'rejected' || st === 'null') { setMsg({ ok: false, text: 'O pagamento não foi aprovado. Tente de novo ou use outra forma.' }); return; }
+    setMsg({ ok: true, text: 'Conferindo o pagamento…' });
+    confirmPayment(pid).then((r) => {
+      if (r && 'ok' in r && r.ok === false) setMsg({ ok: true, text: ['pending', 'in_process'].includes(String(r.status)) ? 'Pagamento em análise. A ativação acontece sozinha assim que for aprovado.' : 'Pagamento ainda não aprovado. Assim que aprovar, a ativação é automática.' });
+      else if (r && r.paidUntil > Date.now()) setMsg({ ok: true, text: `Pagamento aprovado! Assinatura válida até ${dateOnly(r.validUntil)}.` });
+      else setMsg({ ok: true, text: 'Pagamento ainda não confirmado. Assim que aprovar, a ativação é automática.' });
+    }).catch((e) => setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }));
+  }, []);
+
+  const buy = async (plan: string) => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const url = await startCheckout(plan);
+      if (IS_NATIVE) { window.open(url, '_blank'); setOpened(true); setBusy(false); }
+      else location.assign(url);
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
+      setBusy(false);
+    }
+  };
+  const check = async () => {
+    setBusy(true);
+    try {
+      const r = await confirmPayment();
+      if (r && !('ok' in r && r.ok === false) && r.paidUntil > Date.now()) setMsg({ ok: true, text: `Assinatura ativa até ${dateOnly(r.validUntil)}.` });
+      else setMsg({ ok: false, text: 'Ainda não recebemos o pagamento. Se já pagou, aguarde um minuto e tente de novo.' });
+    } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }); }
+    setBusy(false);
+  };
   const submit = async () => {
     setBusy(true);
     setMsg(null);
@@ -43,8 +86,27 @@ export function ActivateBox({ lic }: { lic: License | null }) {
   };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {lic?.checkoutUrl && (
+      {plat?.checkout && (
+        <>
+          <div className="grid">
+            {plat.plans.map((pl) => (
+              <div key={pl.id} className="stat" style={pl.highlight ? { outline: '2px solid var(--primary)' } : undefined}>
+                <span className="muted small">Plano {pl.name}{pl.highlight ? ` · ${pl.highlight}` : ''}</span>
+                <b>{money(pl.price)}</b>
+                <span className="muted small">{pl.days} dias de uso</span>
+                <button className={'btn ' + (pl.highlight ? 'primary' : 'secondary')} disabled={busy} onClick={() => buy(pl.id)}>Assinar {pl.name.toLowerCase()}</button>
+              </div>
+            ))}
+          </div>
+          <span className="muted small">Pague com PIX, cartão ou boleto pelo Mercado Pago. A ativação é automática.</span>
+          {opened && <button className="btn" disabled={busy} onClick={check}>Já paguei: verificar agora</button>}
+        </>
+      )}
+      {!plat?.checkout && lic?.checkoutUrl && (
         <a className="btn primary big" href={lic.checkoutUrl} target="_blank" rel="noreferrer">Comprar ativação</a>
+      )}
+      {!plat?.checkout && plat?.supportWhatsApp && (
+        <a className="btn primary" href={whatsLink(plat.supportWhatsApp, 'Olá! Quero assinar o Vision PDV.')} target="_blank" rel="noreferrer">Assinar pelo WhatsApp</a>
       )}
       <div className="field">
         <label htmlFor="actk">Tenho uma chave de ativação</label>

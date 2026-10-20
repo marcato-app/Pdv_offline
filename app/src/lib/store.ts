@@ -72,7 +72,7 @@ export async function api<T = unknown>(path: string, init?: RequestInit & { toke
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (init?.token) headers.authorization = `Bearer ${init.token}`;
   if (init?.master) headers['x-master-key'] = init.master;
-  const res = await fetch(API_BASE + path, { ...init, headers: { ...headers, ...(init?.headers as Record<string, string> | undefined) } });
+  const res = await fetch(API_BASE + path, { signal: AbortSignal.timeout(20_000), ...init, headers: { ...headers, ...(init?.headers as Record<string, string> | undefined) } });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as { error?: string }).error || `Erro ${res.status}`);
   return data as T;

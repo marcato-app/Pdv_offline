@@ -15,7 +15,7 @@ interface Key { code: string; days: number; note: string | null; created_at: num
 export function Dono() {
   const [master, setMaster] = useState(() => sessionStorage.getItem('vision-master') || '');
   const [ok, setOk] = useState(false);
-  const [tab, setTab] = useState<'lojas' | 'chaves' | 'produtos'>('lojas');
+  const [tab, setTab] = useState<'lojas' | 'chaves' | 'produtos' | 'plataforma'>('lojas');
   const [stores, setStores] = useState<StoreInfo[]>([]);
   const [keys, setKeys] = useState<Key[]>([]);
   const [err, setErr] = useState('');
@@ -85,6 +85,7 @@ export function Dono() {
           <button className={'btn sm ' + (tab === 'lojas' ? 'secondary' : '')} onClick={() => setTab('lojas')}>Lojas</button>
           <button className={'btn sm ' + (tab === 'chaves' ? 'secondary' : '')} onClick={() => setTab('chaves')}>Chaves de ativação</button>
           <button className={'btn sm ' + (tab === 'produtos' ? 'secondary' : '')} onClick={() => setTab('produtos')}>Banco de produtos</button>
+          <button className={'btn sm ' + (tab === 'plataforma' ? 'secondary' : '')} onClick={() => setTab('plataforma')}>Planos e pagamento</button>
           <button className="btn sm ghost" onClick={() => { sessionStorage.removeItem('vision-master'); setOk(false); setMaster(''); }}>Sair</button>
         </div>
       </div>
@@ -122,6 +123,7 @@ export function Dono() {
       )}
 
       {tab === 'produtos' && <CatalogUpload master={master} />}
+      {tab === 'plataforma' && <PlatformCfg master={master} />}
 
       {tab === 'chaves' && (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -200,6 +202,68 @@ function CatalogUpload({ master }: { master: string }) {
         </>
       )}
       {progress && <span className="chip ok">{progress}</span>}
+    </div>
+  );
+}
+
+interface PlanRow { id: string; name: string; price: number; days: number; highlight?: string }
+interface PlatformAdmin { plans: PlanRow[]; mpToken: string | null; supportWhatsApp: string | null; company: string | null; companyDoc: string | null; companyEmail: string | null; checkout: boolean }
+
+/** Planos, preço, conta Mercado Pago que recebe as assinaturas, WhatsApp do suporte e dados da empresa (vão nos termos). */
+function PlatformCfg({ master }: { master: string }) {
+  const [p, setP] = useState<PlatformAdmin | null>(null);
+  const [token, setToken] = useState('');
+  const [msg, setMsg] = useState('');
+  useEffect(() => { api<PlatformAdmin>('/api/admin/platform', { master }).then(setP).catch((e) => setMsg(String(e.message || e))); }, []);
+  if (!p) return <div className="card">{msg || 'Carregando…'}</div>;
+  const setPlan = (i: number, k: keyof PlanRow, v: string) => setP({ ...p, plans: p.plans.map((x, j) => (j === i ? { ...x, [k]: k === 'price' || k === 'days' ? Number(v.replace(',', '.')) : v } : x)) });
+  const save = async () => {
+    setMsg('');
+    try {
+      const body: Record<string, unknown> = { plans: p.plans, supportWhatsApp: p.supportWhatsApp || '', company: p.company || '', companyDoc: p.companyDoc || '', companyEmail: p.companyEmail || '' };
+      if (token.trim()) body.mpToken = token.trim();
+      const r = await api<PlatformAdmin>('/api/admin/platform', { method: 'PUT', master, body: JSON.stringify(body) });
+      setP(r); setToken(''); setMsg('Salvo!');
+      localStorage.removeItem('vision-platform');
+    } catch (e) { setMsg(e instanceof Error ? e.message : String(e)); }
+  };
+  const txt = (id: string, label: string, k: 'supportWhatsApp' | 'company' | 'companyDoc' | 'companyEmail', ph = '') => (
+    <div className="field"><label htmlFor={id}>{label}</label><input id={id} className="input" placeholder={ph} value={p[k] || ''} onChange={(e) => setP({ ...p, [k]: e.target.value })} /></div>
+  );
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <h2 style={{ fontSize: 18 }}>Planos</h2>
+      <div className="table-wrap">
+        <table className="t" style={{ minWidth: 640 }}>
+          <thead><tr><th>Código</th><th>Nome</th><th>Preço (R$)</th><th>Dias</th><th>Destaque</th><th /></tr></thead>
+          <tbody>
+            {p.plans.map((pl, i) => (
+              <tr key={i}>
+                <td><input className="input" aria-label="Código" value={pl.id} onChange={(e) => setPlan(i, 'id', e.target.value)} /></td>
+                <td><input className="input" aria-label="Nome" value={pl.name} onChange={(e) => setPlan(i, 'name', e.target.value)} /></td>
+                <td><input className="input" aria-label="Preço" inputMode="decimal" value={String(pl.price)} onChange={(e) => setPlan(i, 'price', e.target.value)} /></td>
+                <td><input className="input" aria-label="Dias" inputMode="numeric" value={String(pl.days)} onChange={(e) => setPlan(i, 'days', e.target.value)} /></td>
+                <td><input className="input" aria-label="Destaque" placeholder="ex.: 2 meses grátis" value={pl.highlight || ''} onChange={(e) => setPlan(i, 'highlight', e.target.value)} /></td>
+                <td><button className="btn sm danger" onClick={() => setP({ ...p, plans: p.plans.filter((_, j) => j !== i) })}>Tirar</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <button className="btn sm" style={{ alignSelf: 'flex-start' }} onClick={() => setP({ ...p, plans: [...p.plans, { id: 'novo', name: 'Novo', price: 99, days: 30 }] })}>+ Plano</button>
+
+      <h2 style={{ fontSize: 18 }}>Recebimento (Mercado Pago)</h2>
+      <p className="muted small" style={{ margin: 0 }}>Cole o Access Token de produção da SUA conta Mercado Pago (Seu negócio → Configurações → Credenciais). As assinaturas caem nela e as lojas são ativadas sozinhas. Situação: <b>{p.checkout ? `ligado (${p.mpToken})` : 'desligado'}</b>.</p>
+      <div className="field"><label htmlFor="pmt">Access Token</label><input id="pmt" className="input" type="password" placeholder={p.mpToken ? 'deixe vazio para manter' : 'APP_USR-…'} value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" /></div>
+
+      <h2 style={{ fontSize: 18 }}>Suporte e empresa</h2>
+      <div className="grid">
+        {txt('psw', 'WhatsApp do suporte (com DDD)', 'supportWhatsApp', '11 99999-9999')}
+        {txt('pco', 'Nome da empresa (termos)', 'company')}
+        {txt('pcd', 'CNPJ ou CPF', 'companyDoc')}
+        {txt('pce', 'E-mail de contato', 'companyEmail')}
+      </div>
+      <div className="row"><button className="btn primary" onClick={save}>Salvar</button>{msg && <span className="chip">{msg}</span>}</div>
     </div>
   );
 }

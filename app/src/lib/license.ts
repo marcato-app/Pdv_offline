@@ -57,3 +57,22 @@ export const STATUS_LABEL: Record<License['status'], string> = {
   expired: 'Vencida',
   blocked: 'Bloqueada',
 };
+
+/** Abre o pagamento do plano no Mercado Pago. A ativação é automática quando o pagamento é aprovado. */
+export async function startCheckout(plan: string) {
+  const token = await getDevice<string | null>('token', null);
+  if (!token) throw new Error('Entre na loja com internet antes de assinar');
+  const back = `${location.origin}/config?aba=assinatura`;
+  const r = await api<{ url: string }>('/api/billing/checkout', { method: 'POST', token, body: JSON.stringify({ plan, back }) });
+  return r.url;
+}
+
+/** Na volta do Mercado Pago (ou no botão "Já paguei"): confere o pagamento e atualiza a licença. */
+export async function confirmPayment(paymentId?: string) {
+  const token = await getDevice<string | null>('token', null);
+  if (!token) return null;
+  const r = await api<License & { ok?: boolean; status?: string }>('/api/billing/confirm', { method: 'POST', token, body: JSON.stringify({ paymentId }) });
+  if (r.ok === false) return r;
+  await saveLicense(r);
+  return r;
+}

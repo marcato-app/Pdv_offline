@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS stores (
   trial_ends  INTEGER NOT NULL,
   paid_until  INTEGER NOT NULL DEFAULT 0,
   plan        TEXT,
-  blocked     INTEGER NOT NULL DEFAULT 0
+  blocked     INTEGER NOT NULL DEFAULT 0,
+  terms_at    INTEGER -- quando aceitou os termos de uso
 );
 CREATE INDEX IF NOT EXISTS stores_ip ON stores (created_ip, created_at);
 
@@ -84,3 +85,9 @@ CREATE TABLE IF NOT EXISTS wa_log (
 
 -- Login por e-mail: acha o usuário rápido em qualquer loja.
 CREATE INDEX IF NOT EXISTS records_user_email ON records (lower(json_extract(data, '$.email'))) WHERE tbl = 'users';
+
+-- Configurações da plataforma (planos, Mercado Pago do Vision PDV, suporte, dados da empresa).
+CREATE TABLE IF NOT EXISTS platform_config (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);

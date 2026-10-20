@@ -54,6 +54,7 @@ interface RemoteRecord {
 
 async function request(cfg: SyncConfig, path: string, init?: RequestInit) {
   const res = await fetch(cfg.url + path, {
+    signal: AbortSignal.timeout(20_000), // internet ruim não pode travar o sistema
     ...init,
     headers: { 'content-type': 'application/json', authorization: `Bearer ${cfg.token}`, ...(init?.headers || {}) },
   });

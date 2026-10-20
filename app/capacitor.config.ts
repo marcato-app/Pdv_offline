@@ -11,6 +11,7 @@ const config: CapacitorConfig = {
     errorPath: 'offline.html',
     allowNavigation: ['visionpdv.marcatoapp.com.br'],
   },
+  appendUserAgent: 'VisionPDVApp',
   android: { allowMixedContent: false },
 };
 

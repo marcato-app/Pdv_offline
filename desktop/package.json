@@ -1,7 +1,7 @@
 {
   "name": "vision-pdv-desktop",
   "productName": "Vision PDV",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Vision PDV para Windows",
   "author": "Vision PDV",
   "private": true,

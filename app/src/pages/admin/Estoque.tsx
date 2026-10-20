@@ -5,6 +5,7 @@ import { LossModal } from '../../components/LossModal';
 import { setStock, addStock } from '../../lib/pdv';
 import { qtyFmt, parseNum, dateTime } from '../../lib/format';
 import { Modal } from '../../components/ui';
+import { CameraButton } from '../../components/CameraScan';
 
 type Row = Product & { stock: number };
 
@@ -38,7 +39,10 @@ export function Estoque() {
       </div>
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div className="row">
-          <input className="input" style={{ flex: '1 1 260px' }} placeholder="Buscar por nome, código ou marca" value={t} onChange={(e) => setT(e.target.value)} />
+          <div className="row" style={{ flex: '1 1 260px', flexWrap: 'nowrap', gap: 8 }}>
+            <input className="input" style={{ flex: 1, minWidth: 0 }} placeholder="Buscar por nome, código ou marca" value={t} onChange={(e) => setT(e.target.value)} />
+            <CameraButton onCode={setT} />
+          </div>
           <select className="input" style={{ width: 200 }} value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)}>
             <option value="todos">Todos</option><option value="baixo">Abaixo do mínimo</option><option value="zerado">Zerados</option>
           </select>

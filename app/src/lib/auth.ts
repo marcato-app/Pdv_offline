@@ -100,6 +100,7 @@ export async function finishPendingLogin(slug: string) {
   const { saveLicense } = await import('./license');
   await setToken(r.token);
   await saveLicense(r.license);
-  await syncNow();
   localStorage.setItem(`vision-uid-${slug}`, r.userId);
+  // Baixa os dados da loja, mas nunca trava a abertura: no máximo 25 segundos.
+  await Promise.race([syncNow(), new Promise((res) => setTimeout(res, 25_000))]);
 }

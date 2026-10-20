@@ -7,6 +7,7 @@ import { lookupBarcode, photoToDataUrl, contribute } from '../../lib/catalog';
 import { money, parseNum, dec2, qtyFmt } from '../../lib/format';
 import { resizeImage } from '../../lib/theme';
 import { Photo } from '../../components/ui';
+import { CameraButton } from '../../components/CameraScan';
 
 export function Produtos() {
   const nav = useNavigate();
@@ -42,7 +43,10 @@ export function Produtos() {
         </div>
       )}
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <input className="input" placeholder="Buscar por nome, código ou marca" value={t} onChange={(e) => setT(e.target.value)} />
+        <div className="row" style={{ flexWrap: 'nowrap', gap: 8 }}>
+          <input className="input" style={{ flex: 1, minWidth: 0 }} placeholder="Buscar por nome, código ou marca" value={t} onChange={(e) => setT(e.target.value)} />
+          <CameraButton onCode={setT} />
+        </div>
         <div className="table-wrap">
           <table className="t" style={{ minWidth: 720 }}>
             <thead><tr><th>Produto</th><th>Código</th><th>Marca</th><th>Categoria</th><th className="right">Preço</th><th className="right">Estoque</th></tr></thead>
@@ -195,8 +199,11 @@ export function ProdutoForm() {
             {tab === 'geral' && <>
               <div className="field">
                 <label htmlFor="p-barcode">Código de barras</label>
-                <input id="p-barcode" value={p.barcode || ''} onChange={(e) => set('barcode', e.target.value)} onBlur={(e) => autoFill(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); autoFill((e.target as HTMLInputElement).value); } }} />
+                <div className="row" style={{ flexWrap: 'nowrap', gap: 8 }}>
+                  <input id="p-barcode" style={{ flex: 1, minWidth: 0 }} value={p.barcode || ''} onChange={(e) => set('barcode', e.target.value)} onBlur={(e) => autoFill(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); autoFill((e.target as HTMLInputElement).value); } }} />
+                  <CameraButton onCode={(c) => { set('barcode', c); autoFill(c); }} />
+                </div>
                 {lookup === 'buscando' && <span className="muted small">Procurando no banco de produtos…</span>}
                 {lookup === 'achou' && <span className="small" style={{ color: 'var(--ok)', fontWeight: 700 }}>Dados preenchidos automaticamente. Confira.</span>}
                 {lookup === 'nada' && <span className="muted small">Não encontrado no banco de produtos. Preencha à mão.</span>}

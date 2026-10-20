@@ -18,6 +18,8 @@ import { ExpiredScreen, LicenseBanner } from '../components/license';
 import { useLicense } from '../lib/license';
 import { ExternalPay } from '../components/ExternalPay';
 import { UpdateBanner } from '../components/UpdateBanner';
+import { CameraButton } from '../components/CameraScan';
+import { useSupportLink } from '../components/Support';
 import { loadPayConfig } from '../lib/payments';
 import type { PixKey } from '../lib/pix';
 
@@ -62,6 +64,7 @@ export function Caixa() {
   const [lastSale, setLastSale] = useState<Sale | null>(null);
   const [clock, setClock] = useState(Date.now());
   const codeRef = useRef<HTMLInputElement>(null);
+  const support = useSupportLink();
   const lic = useLicense();
   const [authorize, authPrompt] = useAuthorize(user);
   const [unknownCode, setUnknownCode] = useState('');
@@ -115,9 +118,9 @@ export function Caixa() {
   const queue = useRef<Promise<void>>(Promise.resolve());
   const qtyRef = useRef(nextQty);
   qtyRef.current = nextQty;
-  const onCode = () => {
-    const raw = code.trim();
-    setCode('');
+  const onCode = (given?: string) => {
+    const raw = (given ?? code).trim();
+    if (given === undefined) setCode('');
     if (!raw) return;
     queue.current = queue.current.then(async () => {
       let c = raw;
@@ -223,7 +226,7 @@ export function Caixa() {
                 <h1>Próximo cliente</h1>
                 <p className="muted" style={{ margin: 0, fontSize: 18 }}>Bipe o primeiro produto para começar a venda</p>
               </div>
-              <CodeInput refEl={codeRef} code={code} setCode={setCode} onEnter={onCode} nextQty={nextQty} />
+              <CodeInput refEl={codeRef} code={code} setCode={setCode} onEnter={onCode} onCamera={(c) => onCode(c)} nextQty={nextQty} />
             </div>
           </section>
         ) : (
@@ -248,7 +251,7 @@ export function Caixa() {
               </div>
             </div>
             <div className="row">
-              <div style={{ flex: '1 1 300px' }}><CodeInput refEl={codeRef} code={code} setCode={setCode} onEnter={onCode} nextQty={nextQty} /></div>
+              <div style={{ flex: '1 1 300px' }}><CodeInput refEl={codeRef} code={code} setCode={setCode} onEnter={onCode} onCamera={(c) => onCode(c)} nextQty={nextQty} /></div>
             </div>
             <div className="table-wrap items-list">
               <table className="t" style={{ minWidth: 520 }}>
@@ -376,6 +379,7 @@ export function Caixa() {
         <Modal title="Menu" onClose={() => setModal(null)}>
           {canManage(user) && <button className="btn big" onClick={() => nav('/painel')}>Ir para a gestão</button>}
           <button className="btn big" onClick={() => { setModal(null); syncNow(); }}>Sincronizar agora</button>
+          {support && <a className="btn big" href={support} target="_blank" rel="noreferrer">Falar com o suporte (WhatsApp)</a>}
           <button className="btn big" onClick={async () => { await makeBackup('manual'); setModal(null); setToast('Backup feito'); }}>Fazer backup agora</button>
           <button className="btn big danger" disabled={!!active.length} onClick={() => { setUser(null); nav('/login'); }}>Trocar operador (sair)</button>
         </Modal>
@@ -448,12 +452,15 @@ function UnknownModal({ code, onClose, onAdd, onCreate }: { code: string; onClos
   );
 }
 
-function CodeInput({ refEl, code, setCode, onEnter, nextQty }: { refEl: React.RefObject<HTMLInputElement>; code: string; setCode: (s: string) => void; onEnter: () => void; nextQty: number }) {
+function CodeInput({ refEl, code, setCode, onEnter, onCamera, nextQty }: { refEl: React.RefObject<HTMLInputElement>; code: string; setCode: (s: string) => void; onEnter: () => void; onCamera: (c: string) => void; nextQty: number }) {
   return (
     <div className="field" style={{ width: '100%', maxWidth: 560, textAlign: 'left' }}>
       <label htmlFor="code">Código de barras (F2){nextQty !== 1 ? ` · próximo item: ${qtyFmt(nextQty)} un` : ''}</label>
-      <input id="code" ref={refEl} className="input big" autoComplete="off" inputMode="numeric" placeholder="Bipe ou digite o código e tecle Enter"
-        value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onEnter(); } }} />
+      <div className="row" style={{ flexWrap: 'nowrap', gap: 8 }}>
+        <input id="code" ref={refEl} className="input big" style={{ flex: 1, minWidth: 0 }} autoComplete="off" inputMode="numeric" placeholder="Bipe ou digite o código e tecle Enter"
+          value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onEnter(); } }} />
+        <CameraButton className="btn big" continuous onCode={onCamera} />
+      </div>
     </div>
   );
 }

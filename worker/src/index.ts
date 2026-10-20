@@ -6,13 +6,13 @@ import { CORS, json } from './util';
 import { catalogApi } from './catalog';
 import { paymentsApi, secretsApi } from './payments';
 import { whatsappApi, sendDailySummaries } from './whatsapp';
+import { billingApi } from './billing';
 
 export interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
   API_KEY: string; // chave mestra: painel do dono (gerar chaves de ativação, ver lojas)
   TRIAL_DAYS?: string; // dias grátis para loja nova (padrão 7)
-  CHECKOUT_URL?: string; // link de compra; recebe ?loja=<codigo>
   COSMOS_TOKEN?: string; // opcional: base de produtos Bluesoft Cosmos
 }
 
@@ -53,25 +53,24 @@ async function readToken(env: Env, req: Request): Promise<string | null> {
   return safeEqual(sig, await hmac(env, `${storeId}.${exp}`)) ? storeId : null;
 }
 
-interface StoreRow { id: string; name: string; email: string | null; phone: string | null; created_at: number; trial_ends: number; paid_until: number; plan: string | null; blocked: number }
+export interface StoreRow { id: string; name: string; email: string | null; phone: string | null; created_at: number; trial_ends: number; paid_until: number; plan: string | null; blocked: number }
 
-async function getStore(env: Env, slug: string) {
+export async function getStore(env: Env, slug: string) {
   return env.DB.prepare('SELECT * FROM stores WHERE id = ?').bind(slug).first<StoreRow>();
 }
 
 const DAY = 86_400_000;
 
 /** Situação da licença: teste grátis, ativa, vencida ou bloqueada. */
-function licenseOf(env: Env, s: StoreRow) {
+export function licenseOf(env: Env, s: StoreRow) {
   const validUntil = Math.max(s.trial_ends, s.paid_until);
   const now = Date.now();
   const status = s.blocked ? 'blocked' : now > validUntil ? 'expired' : s.paid_until > now ? 'active' : 'trial';
-  const checkout = env.CHECKOUT_URL ? `${env.CHECKOUT_URL}${env.CHECKOUT_URL.includes('?') ? '&' : '?'}loja=${encodeURIComponent(s.id)}` : null;
-  return { status, trialEnds: s.trial_ends, paidUntil: s.paid_until, validUntil, daysLeft: Math.max(0, Math.ceil((validUntil - now) / DAY)), checkoutUrl: checkout };
+  return { status, trialEnds: s.trial_ends, paidUntil: s.paid_until, validUntil, daysLeft: Math.max(0, Math.ceil((validUntil - now) / DAY)), checkoutUrl: null };
 }
 
 /** Soma dias à licença, contando a partir de hoje ou do fim da licença atual (o que for maior). */
-async function extendStore(env: Env, s: StoreRow, days: number) {
+export async function extendStore(env: Env, s: StoreRow, days: number) {
   const base = Math.max(Date.now(), s.trial_ends, s.paid_until);
   const until = base + days * DAY;
   await env.DB.prepare('UPDATE stores SET paid_until = ? WHERE id = ?').bind(until, s.id).run();
@@ -179,6 +178,12 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
     return s ? json({ slug: s.id, name: s.name }) : json({ error: 'Loja não encontrada' }, 404);
   }
 
+  // Planos, aviso do Mercado Pago e configurações do dono (não dependem do acesso da loja).
+  if (p === '/api/plans' || p === '/api/billing/webhook' || p === '/api/admin/platform') {
+    const r = await billingApi(req, env, url, null, isMaster(env, req));
+    if (r) return r;
+  }
+
   // Criar loja nova (cadastro aberto, com dias grátis).
   if (p === '/api/stores' && req.method === 'POST') {
     const ip = req.headers.get('cf-connecting-ip') || '';
@@ -186,7 +191,8 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
       const recent = await env.DB.prepare('SELECT COUNT(*) n FROM stores WHERE created_ip = ? AND created_at > ?').bind(ip, Date.now() - DAY).first<{ n: number }>();
       if ((recent?.n || 0) >= 3) return json({ error: 'Muitas lojas criadas a partir desta internet hoje. Tente amanhã ou fale com o suporte.' }, 429);
     }
-    const body = await req.json<{ slug?: string; name?: string; email?: string; phone?: string; records?: PushRecord[] }>();
+    const body = await req.json<{ slug?: string; name?: string; email?: string; phone?: string; acceptedTerms?: boolean; records?: PushRecord[] }>();
+    if (!body.acceptedTerms) return json({ error: 'É preciso aceitar os Termos de uso e a Política de privacidade' }, 400);
     let slug = (body.slug || '').toLowerCase();
     if (RESERVED.has(slug)) slug = `${slug}-loja`;
     if (!SLUG_RE.test(slug) || RESERVED.has(slug)) return json({ error: 'Código da loja inválido. Use letras minúsculas, números e hífen (3 a 40).' }, 400);
@@ -204,8 +210,8 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
     const stmt = upsertStmt(env);
     const recs = (Array.isArray(body.records) ? body.records : []).filter(validRecord).slice(0, 20);
     await env.DB.batch([
-      env.DB.prepare('INSERT INTO stores (id, name, email, phone, created_at, created_ip, trial_ends) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .bind(slug, body.name.trim().slice(0, 80), (body.email || '').trim().slice(0, 120) || null, (body.phone || '').trim().slice(0, 30) || null, Date.now(), ip, Date.now() + trialDays * DAY),
+      env.DB.prepare('INSERT INTO stores (id, name, email, phone, created_at, created_ip, trial_ends, terms_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind(slug, body.name.trim().slice(0, 80), (body.email || '').trim().slice(0, 120) || null, (body.phone || '').trim().slice(0, 30) || null, Date.now(), ip, Date.now() + trialDays * DAY, Date.now()),
       ...recs.map((r) => stmt.bind(slug, r.tbl, r.id, JSON.stringify(r.data), Math.floor(r.updatedAt), r.deleted ? 1 : 0)),
     ]);
     return json({ ok: true, slug, trialDays, token: await makeToken(env, slug), license: licenseOf(env, (await getStore(env, slug))!) });
@@ -277,7 +283,7 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
   if (!storeId) return json({ error: 'Acesso expirado. Entre de novo.' }, 401);
   if (p === '/health') return json({ ok: true, store: storeId });
 
-  for (const handler of [catalogApi(req, env, url, storeId, false), secretsApi(req, env, url, storeId), paymentsApi(req, env, url, storeId), whatsappApi(req, env, url, storeId)]) {
+  for (const handler of [billingApi(req, env, url, storeId, false), catalogApi(req, env, url, storeId, false), secretsApi(req, env, url, storeId), paymentsApi(req, env, url, storeId), whatsappApi(req, env, url, storeId)]) {
     const res = await handler;
     if (res) return res;
   }
