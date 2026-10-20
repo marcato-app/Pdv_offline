@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../lib/db';
 import { money, qtyFmt, PAYMENT_LABELS, startOfDay } from '../../lib/format';
 import { downloadText } from '../../lib/backup';
+import { Link } from 'react-router-dom';
 
 const RANGES = { hoje: 'Hoje', '7': 'Últimos 7 dias', '30': 'Últimos 30 dias' } as const;
 
@@ -37,6 +38,12 @@ export function Painel() {
     return { count: sales.length, total, avg: sales.length ? total / sales.length : 0, byHour, byDay, byMethod, top, low, sales };
   }, [from]);
 
+  const alerts = useLiveQuery(async () => {
+    const today = startOfDay();
+    const bills = await db.bills.where('dueDate').below(today + 86_400_000).filter((b) => !b.deleted && !b.paidAt).toArray();
+    const pending = await db.pendingProducts.filter((x) => !x.deleted).count();
+    return { late: bills.filter((b) => b.dueDate < today), dueToday: bills.filter((b) => b.dueDate >= today), pending };
+  }, []);
   if (!r) return null;
   const series = range === 'hoje' ? r.byHour.map((v, h) => [String(h).padStart(2, '0') + 'h', v] as [string, number]).filter((_, h) => h >= 6 && h <= 23) : Object.entries(r.byDay);
   const max = Math.max(1, ...series.map((x) => x[1]));
@@ -50,10 +57,17 @@ export function Painel() {
     <>
       <div className="page-head"><h1>Painel</h1>
         <div className="row">
-          {(Object.keys(RANGES) as (keyof typeof RANGES)[]).map((k) => <button key={k} className={'btn sm ' + (range === k ? 'secondary' : '')} onClick={() => setRange(k)}>{RANGES[k]}</button>)}
+          {(['hoje', '7', '30'] as (keyof typeof RANGES)[]).map((k) => <button key={k} className={'btn sm ' + (range === k ? 'secondary' : '')} onClick={() => setRange(k)}>{RANGES[k]}</button>)}
           <button className="btn sm ghost" onClick={exportCsv}>Exportar CSV</button>
         </div>
       </div>
+      {alerts && (alerts.late.length > 0 || alerts.dueToday.length > 0 || alerts.pending > 0) && (
+        <div className="row">
+          {alerts.late.length > 0 && <Link to="/financeiro" className="chip danger" style={{ padding: 10, textDecoration: 'none' }}>{alerts.late.length} {alerts.late.length === 1 ? 'conta vencida' : 'contas vencidas'}</Link>}
+          {alerts.dueToday.length > 0 && <Link to="/financeiro" className="chip warn" style={{ padding: 10, textDecoration: 'none' }}>{alerts.dueToday.length} {alerts.dueToday.length === 1 ? 'conta vence' : 'contas vencem'} hoje</Link>}
+          {alerts.pending > 0 && <Link to="/produtos" className="chip warn" style={{ padding: 10, textDecoration: 'none' }}>{alerts.pending} {alerts.pending === 1 ? 'produto vendido' : 'produtos vendidos'} sem cadastro</Link>}
+        </div>
+      )}
       <div className="grid">
         <div className="stat"><span className="muted small">Faturamento</span><b>{money(r.total)}</b></div>
         <div className="stat"><span className="muted small">Vendas</span><b>{r.count}</b></div>

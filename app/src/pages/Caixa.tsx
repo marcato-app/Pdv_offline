@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useApp } from '../lib/app-context';
 import { db, round2, round3, getDevice, type CashSession, type Product, type SaleItem, type Payment, type PaymentMethod, type Customer, type Sale } from '../lib/db';
-import { findProduct, makeItem, searchProducts, finalizeSale, currentSession, openSession, addCashMove, sessionSummary, closeSession, customerBalance, type SessionSummary } from '../lib/pdv';
+import { findProduct, makeItem, makeManualItem, searchProducts, finalizeSale, currentSession, openSession, addCashMove, sessionSummary, closeSession, customerBalance, DEFAULT_QUICK_ITEMS, type SessionSummary, type QuickItem } from '../lib/pdv';
+import { useAuthorize, type Action } from '../lib/permissions';
+import { getScaleSettings, readWeight } from '../lib/scale';
+import { getSetting } from '../lib/db';
 import { money, dec2, qtyFmt, parseNum, PAYMENT_LABELS, formatCpf, isValidCpf, onlyDigits, timeOnly } from '../lib/format';
 import { receiptHtml, closingHtml, cashMoveHtml, printHtml } from '../lib/receipt';
 import { makeBackup } from '../lib/backup';
@@ -13,7 +16,7 @@ import { Logo, Modal, Photo, SyncBadge } from '../components/ui';
 import { ExpiredScreen, LicenseBanner } from '../components/license';
 import { useLicense } from '../lib/license';
 
-type ModalKind = null | 'qty' | 'discount' | 'search' | 'cancelItem' | 'cancelSale' | 'customer' | 'sangria' | 'suprimento' | 'pay' | 'done' | 'close' | 'menu';
+type ModalKind = null | 'qty' | 'discount' | 'search' | 'cancelItem' | 'cancelSale' | 'customer' | 'sangria' | 'suprimento' | 'pay' | 'done' | 'close' | 'menu' | 'manual' | 'unknown' | 'weight';
 
 const METHODS: { key: string; method: PaymentMethod | 'split'; label: string }[] = [
   { key: '1', method: 'dinheiro', label: 'Dinheiro' },
@@ -55,6 +58,15 @@ export function Caixa() {
   const [clock, setClock] = useState(Date.now());
   const codeRef = useRef<HTMLInputElement>(null);
   const lic = useLicense();
+  const [authorize, authPrompt] = useAuthorize(user);
+  const [unknownCode, setUnknownCode] = useState('');
+  const [weighing, setWeighing] = useState<Product | null>(null);
+  // Abre uma janela que precisa de senha do gerente (quando a ação exige).
+  const ask = (action: Action, kind: ModalKind) => async () => { if (await authorize(action)) setModal(kind); };
+  const addManual = (it: SaleItem) => {
+    setItems((prev) => { setSelected(prev.length); return [...prev, it]; });
+    setLastProduct(null);
+  };
 
   const active = items.filter((i) => !i.canceled);
   const subtotal = round2(active.reduce((s, i) => s + i.total, 0));
@@ -108,8 +120,16 @@ export function Caixa() {
       const m = c.match(/^(\d+(?:[.,]\d+)?)\*(.+)$/);
       if (m) { qty = parseNum(m[1]); c = m[2]; }
       const found = await findProduct(c);
-      if (!found) { beep(); setToast(`Produto não encontrado: ${c}`); return; }
+      if (!found) { beep(); setUnknownCode(c); setModal('unknown'); return; }
       if (found.qty !== undefined) addProduct(found.product, found.qty, found.total);
+      else if (found.product.unit === 'KG' && !m) {
+        // Produto por quilo sem etiqueta: pesa na balança do caixa, ou digita o peso.
+        const sc = await getScaleSettings();
+        if (sc.enabled) {
+          try { addProduct(found.product, await readWeight()); }
+          catch (e) { setToast(e instanceof Error ? e.message : String(e)); setWeighing(found.product); setModal('weight'); }
+        } else { setWeighing(found.product); setModal('weight'); }
+      }
       else addProduct(found.product, qty);
       qtyRef.current = 1;
       setNextQty(1);
@@ -119,18 +139,19 @@ export function Caixa() {
   // Atalhos de teclado
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (modal || !session) return;
+      if (modal || !session || authPrompt) return;
       const map: Record<string, () => void> = {
+        F1: () => ask('valorManual', 'manual')(),
         F2: () => codeRef.current?.focus(),
         F3: () => setModal('qty'),
-        F4: () => active.length && setModal('discount'),
+        F4: () => active.length && ask('desconto', 'discount')(),
         F5: () => setModal('search'),
-        F6: () => (e.ctrlKey ? active.length && setModal('cancelSale') : active.length && setModal('cancelItem')),
+        F6: () => (e.ctrlKey ? active.length && ask('cancelarVenda', 'cancelSale')() : active.length && ask('cancelarItem', 'cancelItem')()),
         F7: () => setModal('customer'),
-        F8: () => setModal('sangria'),
-        F9: () => setModal('suprimento'),
+        F8: () => ask('sangria', 'sangria')(),
+        F9: () => ask('suprimento', 'suprimento')(),
         F10: () => active.length && setModal('pay'),
-        F11: () => !active.length && setModal('close'),
+        F11: () => !active.length && ask('fecharCaixa', 'close')(),
         F12: () => setModal('menu'),
       };
       const fn = map[e.key];
@@ -138,31 +159,36 @@ export function Caixa() {
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [modal, session, active.length]);
+  }, [modal, session, active.length, authPrompt]);
 
   if (!user) return null;
   if (session === undefined) return null;
   if (lic && (lic.status === 'expired' || lic.status === 'blocked')) return <ExpiredScreen />;
 
   if (!session) {
-    return <OpenCash onOpen={async (amount) => {
-      const s = await openSession(user, amount);
-      setSession(s);
-    }} onBack={() => (canManage(user) ? nav('/painel') : (setUser(null), nav('/login')))} />;
+    return <>
+      <OpenCash onOpen={async (amount) => {
+        if (!(await authorize('abrirCaixa'))) return;
+        const s = await openSession(user, amount);
+        setSession(s);
+      }} onBack={() => (canManage(user) ? nav('/painel') : (setUser(null), nav('/login')))} />
+      {authPrompt}
+    </>;
   }
 
   const current = selected >= 0 ? items[selected] : null;
   const shortcuts: [string, string, () => void][] = [
+    ['F1', 'Valor manual', ask('valorManual', 'manual')],
     ['F2', 'Código', () => codeRef.current?.focus()],
     ['F3', 'Qtd', () => setModal('qty')],
-    ['F4', 'Desconto', () => active.length && setModal('discount')],
+    ['F4', 'Desconto', () => { if (active.length) ask('desconto', 'discount')(); }],
     ['F5', 'Buscar', () => setModal('search')],
-    ['F6', 'Cancelar item', () => active.length && setModal('cancelItem')],
+    ['F6', 'Cancelar item', () => { if (active.length) ask('cancelarItem', 'cancelItem')(); }],
     ['F7', 'Cliente', () => setModal('customer')],
-    ['F8', 'Sangria', () => setModal('sangria')],
-    ['F9', 'Suprimento', () => setModal('suprimento')],
+    ['F8', 'Sangria', ask('sangria', 'sangria')],
+    ['F9', 'Suprimento', ask('suprimento', 'suprimento')],
     ['F10', 'Pagamento', () => active.length && setModal('pay')],
-    ['F11', 'Fechar caixa', () => !active.length && setModal('close')],
+    ['F11', 'Fechar caixa', () => { if (!active.length) ask('fecharCaixa', 'close')(); }],
     ['F12', 'Menu', () => setModal('menu')],
   ];
 
@@ -254,11 +280,11 @@ export function Caixa() {
               <div className="spread"><span className="muted">Fundo de troco</span><b>{money(session.openingAmount)}</b></div>
               <div className="spread"><span className="muted">Vendas neste turno</span><b>{salesToday}</b></div>
               {lastSale && <div className="spread"><span className="muted">Última venda</span><b>{lastSale.number} · {money(lastSale.total)}</b></div>}
-              {lastSale && <button className="btn sm ghost" onClick={async () => printHtml(await receiptHtml(lastSale))}>Reimprimir último cupom</button>}
+              {lastSale && <button className="btn sm ghost" onClick={async () => { if (await authorize('reimprimir')) printHtml(await receiptHtml(lastSale)); }}>Reimprimir último cupom</button>}
             </div>
           )}
           <button className="btn primary big" style={{ marginTop: 'auto', height: 64 }} disabled={!active.length} onClick={() => setModal('pay')}>Pagamento (F10)</button>
-          {!!active.length && <button className="btn ghost" onClick={() => setModal('cancelSale')}>Cancelar venda (Ctrl+F6)</button>}
+          {!!active.length && <button className="btn ghost" onClick={ask('cancelarVenda', 'cancelSale')}>Cancelar venda (Ctrl+F6)</button>}
         </aside>
       </div>
 
@@ -268,6 +294,14 @@ export function Caixa() {
 
       {toast && <div style={{ position: 'fixed', top: 80, left: '50%', transform: 'translateX(-50%)', background: 'var(--danger)', color: '#fff', padding: '14px 22px', borderRadius: 14, fontWeight: 700, zIndex: 60 }}>{toast}</div>}
 
+      {authPrompt}
+      {modal === 'manual' && <ManualModal onClose={() => setModal(null)} onAdd={(it) => { addManual(it); setModal(null); }} />}
+      {modal === 'unknown' && <UnknownModal code={unknownCode} onClose={() => setModal(null)} onAdd={async (desc, price, qty) => {
+        if (!(await authorize('valorManual'))) return;
+        addManual(makeManualItem('naocadastrado', desc, price, qty, unknownCode));
+        setModal(null);
+      }} />}
+      {modal === 'weight' && weighing && <NumberModal title={`Peso · ${weighing.description}`} label="Peso em kg (ex.: 0,850)" initial="" onClose={() => setModal(null)} onOk={(v) => { if (v > 0) addProduct(weighing, round3(v)); setModal(null); }} />}
       {modal === 'qty' && <NumberModal title="Quantidade do próximo item" label="Quantidade" initial={String(nextQty)} onClose={() => setModal(null)} onOk={(v) => { if (v > 0) setNextQty(v); setModal(null); }} />}
       {modal === 'discount' && <DiscountModal subtotal={subtotal} current={discount} onClose={() => setModal(null)} onOk={(v) => { setDiscount(v); setModal(null); }} />}
       {modal === 'search' && <SearchModal onClose={() => setModal(null)} onPick={(p) => { addProduct(p, nextQty); setNextQty(1); setModal(null); }} />}
@@ -329,6 +363,47 @@ export function Caixa() {
         </Modal>
       )}
     </div>
+  );
+}
+
+function ManualModal({ onClose, onAdd }: { onClose: () => void; onAdd: (it: SaleItem) => void }) {
+  const types = useLiveQuery(() => getSetting<QuickItem[]>('quickItems', DEFAULT_QUICK_ITEMS), [], DEFAULT_QUICK_ITEMS);
+  const [type, setType] = useState<QuickItem | null>(null);
+  const [desc, setDesc] = useState('');
+  const [price, setPrice] = useState('');
+  const [qty, setQty] = useState('1');
+  const pick = (t: QuickItem) => { setType(t); setDesc(t.label); setPrice(t.price ? dec2(t.price) : ''); setTimeout(() => document.getElementById('mvp')?.focus(), 0); };
+  const ok = () => { const v = parseNum(price); if (v > 0 && desc.trim()) onAdd(makeManualItem('avulso', desc.trim(), v, Math.max(1, parseNum(qty) || 1))); };
+  return (
+    <Modal title="Lançar valor manual" onClose={onClose} footer={<><button className="btn" onClick={onClose}>Voltar (Esc)</button><button className="btn primary" onClick={ok}>Adicionar (Enter)</button></>}>
+      <div className="row">{types.map((t, i) => <button key={t.id} className={'btn sm ' + (type?.id === t.id ? 'secondary' : '')} onClick={() => pick(t)}>{i + 1}. {t.label}</button>)}</div>
+      <div className="field"><label htmlFor="mvd">Descrição</label><input id="mvd" autoFocus value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => {
+        const n = Number(e.key); if (!desc && n >= 1 && n <= types.length) { e.preventDefault(); pick(types[n - 1]); }
+        if (e.key === 'Enter') document.getElementById('mvp')?.focus();
+      }} /></div>
+      <div className="row" style={{ flexWrap: 'nowrap' }}>
+        <div className="field" style={{ flex: 2 }}><label htmlFor="mvp">Valor</label><input id="mvp" className="input big" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && ok()} /></div>
+        <div className="field" style={{ flex: 1 }}><label htmlFor="mvq">Qtd</label><input id="mvq" className="input big" inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && ok()} /></div>
+      </div>
+    </Modal>
+  );
+}
+
+function UnknownModal({ code, onClose, onAdd }: { code: string; onClose: () => void; onAdd: (desc: string, price: number, qty: number) => void }) {
+  const [desc, setDesc] = useState('PRODUTO NÃO CADASTRADO');
+  const [price, setPrice] = useState('');
+  const [qty, setQty] = useState('1');
+  useEffect(() => { beep(); }, []);
+  const ok = () => { const v = parseNum(price); if (v > 0) onAdd(desc.trim() || 'PRODUTO NÃO CADASTRADO', v, Math.max(0.001, parseNum(qty) || 1)); };
+  return (
+    <Modal title="Produto não cadastrado" onClose={onClose} footer={<><button className="btn" onClick={onClose}>Não vender (Esc)</button><button className="btn primary" onClick={ok}>Vender assim mesmo (Enter)</button></>}>
+      <p style={{ margin: 0 }}>O código <b>{code}</b> não tem cadastro. Você pode vender informando o preço. Ele vai aparecer em <b>Produtos</b> para cadastrar depois, e esta venda passa a contar para ele.</p>
+      <div className="field"><label htmlFor="ucd">Descrição</label><input id="ucd" value={desc} onFocus={(e) => e.target.select()} onChange={(e) => setDesc(e.target.value)} /></div>
+      <div className="row" style={{ flexWrap: 'nowrap' }}>
+        <div className="field" style={{ flex: 2 }}><label htmlFor="ucp">Preço</label><input id="ucp" className="input big" autoFocus inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && ok()} /></div>
+        <div className="field" style={{ flex: 1 }}><label htmlFor="ucq">Qtd</label><input id="ucq" className="input big" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && ok()} /></div>
+      </div>
+    </Modal>
   );
 }
 

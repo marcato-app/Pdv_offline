@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, save, remove, uid, stockOf, round2, type Product } from '../../lib/db';
-import { setStock } from '../../lib/pdv';
+import { db, save, remove, uid, stockOf, round2, type Product, type PendingProduct } from '../../lib/db';
+import { setStock, resolvePending } from '../../lib/pdv';
 import { money, parseNum, dec2, qtyFmt } from '../../lib/format';
 import { resizeImage } from '../../lib/theme';
 import { Photo } from '../../components/ui';
@@ -18,12 +18,28 @@ export function Produtos() {
     return rows.map((r, i) => ({ ...r, stock: stock[i]?.qty ?? 0 }));
   }, [t, limit]);
   const count = useLiveQuery(() => db.products.filter((p) => !p.deleted).count(), [], 0);
+  const pending = useLiveQuery(() => db.pendingProducts.filter((x) => !x.deleted).reverse().sortBy('lastSeen'), [], [] as PendingProduct[]);
   return (
     <>
       <div className="page-head">
         <h1>Produtos <span className="muted" style={{ fontSize: 16 }}>({count})</span></h1>
         <div className="row"><Link className="btn" to="/importar">Importar planilha</Link><Link className="btn primary" to="/produtos/novo">+ Novo produto</Link></div>
       </div>
+      {pending.length > 0 && (
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'var(--warn-bg)', borderColor: '#fcd34d' }}>
+          <b style={{ color: 'var(--warn)' }}>{pending.length} {pending.length === 1 ? 'produto foi vendido' : 'produtos foram vendidos'} sem cadastro</b>
+          <span className="small" style={{ color: 'var(--warn)' }}>Ao cadastrar, as vendas feitas passam a contar para o produto e o estoque é atualizado.</span>
+          <div className="table-wrap">
+            <table className="t">
+              <thead><tr><th>Código</th><th>Descrição no caixa</th><th className="right">Vendido</th><th className="right">Último preço</th><th></th></tr></thead>
+              <tbody>{pending.map((x) => (
+                <tr key={x.id}><td>{x.barcode}</td><td>{x.description}</td><td className="right">{x.qty} ({x.timesSold}x)</td><td className="right">{money(x.lastPrice)}</td>
+                  <td className="right"><button className="btn sm primary" onClick={() => nav(`/produtos/novo?pendente=${x.id}`)}>Cadastrar</button></td></tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </div>
+      )}
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <input className="input" placeholder="Buscar por nome, código ou marca" value={t} onChange={(e) => setT(e.target.value)} />
         <div className="table-wrap">
@@ -62,6 +78,7 @@ export function ProdutoForm() {
   const [stockTxt, setStockTxt] = useState('0');
   const [tab, setTab] = useState<'geral' | 'precos' | 'estoque' | 'fiscal'>('geral');
   const [err, setErr] = useState('');
+  const [pendingRow, setPendingRow] = useState<PendingProduct | null>(null);
   const cats = useLiveQuery(async () => {
     const all = await db.products.filter((x) => !x.deleted).toArray();
     const uniq = (k: keyof Product) => [...new Set(all.map((x) => x[k]).filter(Boolean) as string[])].sort();
@@ -69,7 +86,16 @@ export function ProdutoForm() {
   }, []);
 
   useEffect(() => {
-    if (isNew) return;
+    if (isNew) {
+      const pid = new URLSearchParams(location.search).get('pendente');
+      if (pid) db.pendingProducts.get(pid).then((x) => {
+        if (!x) return;
+        setPendingRow(x);
+        setP((o) => ({ ...o, barcode: x.barcode, description: x.description === 'PRODUTO NÃO CADASTRADO' ? '' : x.description }));
+        setTxt((o) => ({ ...o, price: dec2(x.lastPrice) }));
+      });
+      return;
+    }
     db.products.get(id!).then(async (x) => {
       if (!x) return;
       setP(x);
@@ -103,6 +129,7 @@ export function ProdutoForm() {
     await save<Product>('products', rec);
     const newStock = parseNum(stockTxt);
     if (newStock !== stock) await setStock(rec.id, newStock, stock, isNew ? 'inicial' : 'ajuste');
+    if (pendingRow) await resolvePending(pendingRow, rec);
     nav('/produtos');
   };
 
@@ -130,6 +157,7 @@ export function ProdutoForm() {
         </div>
       </div>
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {pendingRow && <span className="chip warn" style={{ padding: 10 }}>Vendido {pendingRow.timesSold}x sem cadastro. Ao salvar, essas vendas passam a contar para este produto. Em "Estoque", informe a quantidade que tem hoje.</span>}
         <div className="row" style={{ alignItems: 'flex-start', gap: 24 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <Photo src={p.photo} size={180} label="Sem foto" />

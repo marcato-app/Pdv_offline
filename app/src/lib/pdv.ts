@@ -1,6 +1,6 @@
 import {
   db, save, uid, round2, round3, getDevice, setDevice, getSetting, SYNCED_TABLES,
-  type Product, type Sale, type SaleItem, type Payment, type CashSession, type CashMove, type StockMove, type CreditEntry, type User,
+  type Product, type Sale, type SaleItem, type Payment, type CashSession, type CashMove, type StockMove, type CreditEntry, type User, type PendingProduct,
 } from './db';
 
 const ALL = () => [...SYNCED_TABLES.map((t) => db.table(t)), db.outbox, db.stockCache];
@@ -63,7 +63,53 @@ export function makeItem(p: Product, qty: number, forcedTotal?: number): SaleIte
     qty,
     unitPrice,
     total: forcedTotal ?? round2(unitPrice * qty),
+    cost: p.cost || 0,
   };
+}
+
+// ---------- Itens lançados à mão ----------
+
+export interface QuickItem {
+  id: string;
+  label: string;
+  price?: number; // valor sugerido
+}
+
+export const DEFAULT_QUICK_ITEMS: QuickItem[] = [
+  { id: 'avulso', label: 'Valor avulso' },
+  { id: 'entrega', label: 'Taxa de entrega', price: 5 },
+  { id: 'sacola', label: 'Sacola', price: 0.2 },
+];
+
+export function makeManualItem(kind: 'avulso' | 'naocadastrado', description: string, unitPrice: number, qty = 1, barcode = ''): SaleItem {
+  return {
+    productId: kind === 'avulso' ? `av:${description}` : `nc:${barcode}`,
+    barcode,
+    description: description.toUpperCase(),
+    unit: 'UN',
+    qty,
+    unitPrice: round2(unitPrice),
+    total: round2(unitPrice * qty),
+    kind,
+    cost: 0,
+  };
+}
+
+/** Quando um produto que era "não cadastrado" ganha cadastro: as vendas antigas passam a contar para ele nos relatórios. */
+export async function resolvePending(pending: PendingProduct, product: Product) {
+  const sales = await db.sales.filter((s) => !s.deleted && s.status === 'completed' && s.items.some((i) => i.kind === 'naocadastrado' && i.barcode === pending.barcode)).toArray();
+  await db.transaction('rw', ALL(), async () => {
+    for (const sale of sales) {
+      const items = sale.items.map((i) => {
+        if (i.kind !== 'naocadastrado' || i.barcode !== pending.barcode) return i;
+        return { ...i, productId: product.id, description: product.description, kind: undefined, cost: product.cost || 0 };
+      });
+      // O estoque não muda aqui: no cadastro, a pessoa informa a quantidade que tem hoje (as vendas já saíram).
+      await save<Sale>('sales', { ...sale, items });
+    }
+    await save<PendingProduct>('pendingProducts', { ...pending, resolvedProductId: product.id, deleted: 1 });
+  });
+  return sales.length;
 }
 
 export async function searchProducts(term: string, limit = 30) {
@@ -109,6 +155,16 @@ export async function finalizeSale(args: {
   await db.transaction('rw', ALL(), async () => {
     await save<Sale>('sales', sale);
     for (const it of items) {
+      if (it.kind === 'avulso') continue;
+      if (it.kind === 'naocadastrado') {
+        // Guarda o produto bipado sem cadastro para avisar na tela de produtos.
+        const prev = await db.pendingProducts.where('barcode').equals(it.barcode).filter((x) => !x.deleted).first();
+        await save<PendingProduct>('pendingProducts', {
+          id: prev?.id || uid(), barcode: it.barcode, description: it.description, lastPrice: it.unitPrice,
+          qty: round3((prev?.qty || 0) + it.qty), timesSold: (prev?.timesSold || 0) + 1, firstSeen: prev?.firstSeen || now, lastSeen: now,
+        });
+        continue;
+      }
       await save<StockMove>('stockMoves', { id: uid(), productId: it.productId, qty: -it.qty, reason: 'venda', refId: sale.id, createdAt: now });
     }
     const fiado = args.payments.filter((p) => p.method === 'crediario').reduce((s, p) => s + p.amount, 0);
@@ -124,7 +180,7 @@ export async function cancelSale(sale: Sale) {
   const now = Date.now();
   await db.transaction('rw', ALL(), async () => {
     await save<Sale>('sales', { ...sale, status: 'canceled' });
-    for (const it of sale.items.filter((i) => !i.canceled)) {
+    for (const it of sale.items.filter((i) => !i.canceled && !i.kind)) {
       await save<StockMove>('stockMoves', { id: uid(), productId: it.productId, qty: it.qty, reason: 'cancelamento', refId: sale.id, createdAt: now });
     }
     const entries = await db.creditEntries.where('customerId').equals(sale.customerId || '-').toArray();

@@ -14,6 +14,8 @@ import { Clientes } from './pages/admin/Clientes';
 import { Vendas, Caixas } from './pages/admin/Vendas';
 import { Usuarios } from './pages/admin/Usuarios';
 import { Config } from './pages/admin/Config';
+import { Relatorios } from './pages/admin/Relatorios';
+import { Financeiro } from './pages/admin/Financeiro';
 
 // No site, cada tela tem seu link (/pdv, /produtos…). No app de Windows e no celular, usa "#/pdv".
 const Router = IS_APP ? HashRouter : BrowserRouter;
@@ -61,6 +63,8 @@ function Root() {
             <Route path="/caixas" element={<Caixas />} />
             <Route path="/usuarios" element={<Usuarios />} />
             <Route path="/config" element={<Config />} />
+            <Route path="/relatorios" element={<Relatorios />} />
+            <Route path="/financeiro" element={<Financeiro />} />
           </Route>
           <Route path="*" element={<Home />} />
         </Routes>

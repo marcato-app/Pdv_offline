@@ -1,12 +1,18 @@
 import { getSetting } from './db';
 
 export interface StoreInfo {
-  name: string;
+  name: string; // nome fantasia
   logo?: string; // data URL
+  legalName?: string; // razão social
   cnpj?: string;
+  ie?: string; // inscrição estadual
   address?: string;
+  city?: string;
   phone?: string;
+  receiptHeader?: string; // mensagem no topo do cupom
   receiptFooter?: string;
+  receiptShowLogo?: boolean;
+  receiptShowBarcode?: boolean;
 }
 
 export interface Theme {

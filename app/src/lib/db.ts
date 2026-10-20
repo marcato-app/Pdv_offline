@@ -68,6 +68,8 @@ export interface SaleItem {
   unitPrice: number;
   total: number;
   canceled?: boolean;
+  kind?: 'avulso' | 'naocadastrado'; // item lançado à mão
+  cost?: number; // custo unitário no momento da venda (para o lucro)
 }
 
 export interface Payment {
@@ -129,6 +131,41 @@ export interface User extends Synced {
   salt: string;
   role: 'admin' | 'gerente' | 'operador';
   active: 0 | 1;
+  cpf?: string;
+  phone?: string;
+  jobTitle?: string; // cargo
+  salary?: number;
+  hiredAt?: number;
+}
+
+// Produto bipado no caixa que ainda não tinha cadastro. Quando for cadastrado, as vendas passam a contar para ele.
+export interface PendingProduct extends Synced {
+  barcode: string;
+  description: string;
+  lastPrice: number;
+  qty: number;
+  timesSold: number;
+  firstSeen: number;
+  lastSeen: number;
+  resolvedProductId?: string;
+}
+
+export type BillCategory = 'boleto' | 'fornecedor' | 'custo_fixo' | 'salario' | 'imposto' | 'outro';
+
+// Conta a pagar (boleto, aluguel, salário…).
+export interface Bill extends Synced {
+  description: string;
+  category: BillCategory;
+  supplier?: string;
+  amount: number;
+  dueDate: number; // meia-noite do dia do vencimento
+  paidAt?: number;
+  paidAmount?: number;
+  barcode?: string; // linha digitável do boleto
+  recurring?: 'mensal';
+  seriesId?: string;
+  employeeId?: string;
+  notes?: string;
 }
 
 // Configurações da loja (sincronizam entre aparelhos).
@@ -164,6 +201,8 @@ export const SYNCED_TABLES = [
   'stockMoves',
   'users',
   'settings',
+  'pendingProducts',
+  'bills',
 ] as const;
 export type SyncedTable = (typeof SYNCED_TABLES)[number];
 
@@ -177,6 +216,8 @@ class VisionDB extends Dexie {
   stockMoves!: Table<StockMove, string>;
   users!: Table<User, string>;
   settings!: Table<Setting, string>;
+  pendingProducts!: Table<PendingProduct, string>;
+  bills!: Table<Bill, string>;
   device!: Table<DeviceConfig, string>;
   outbox!: Table<OutboxEntry, number>;
   stockCache!: Table<StockCache, string>;
@@ -196,6 +237,10 @@ class VisionDB extends Dexie {
       device: 'key',
       outbox: '++seq, [table+recordId]',
       stockCache: 'productId',
+    });
+    this.version(2).stores({
+      pendingProducts: 'id, barcode, lastSeen, updatedAt',
+      bills: 'id, dueDate, paidAt, category, seriesId, updatedAt',
     });
   }
 }

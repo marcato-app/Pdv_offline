@@ -10,7 +10,7 @@ export interface Env {
   CHECKOUT_URL?: string; // link de compra; recebe ?loja=<codigo>
 }
 
-const TABLES = new Set(['products', 'customers', 'creditEntries', 'sales', 'cashSessions', 'cashMoves', 'stockMoves', 'users', 'settings']);
+const TABLES = new Set(['products', 'customers', 'creditEntries', 'sales', 'cashSessions', 'cashMoves', 'stockMoves', 'users', 'settings', 'pendingProducts', 'bills']);
 const MAX_PUSH = 500;
 const MAX_PULL = 1000;
 const TOKEN_DAYS = 365;

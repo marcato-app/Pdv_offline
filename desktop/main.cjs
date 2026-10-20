@@ -22,6 +22,14 @@ function createWindow() {
     autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
   });
+  // Balança no cabo serial/USB: libera o acesso e escolhe a porta automaticamente.
+  const ses = win.webContents.session;
+  ses.setPermissionCheckHandler((_wc, permission) => permission === 'serial' || permission === 'media' || permission === 'clipboard-sanitized-write');
+  ses.setDevicePermissionHandler((details) => details.deviceType === 'serial');
+  ses.on('select-serial-port', (event, portList, _wc, callback) => {
+    event.preventDefault();
+    callback(portList.length ? portList[0].portId : '');
+  });
   win.maximize();
   win.loadFile(path.join(__dirname, 'web', 'index.html'));
   // Links externos abrem no navegador, não dentro do PDV.

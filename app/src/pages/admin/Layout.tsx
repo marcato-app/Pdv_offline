@@ -10,9 +10,11 @@ const LINKS: [string, string][] = [
   ['/importar', 'Importar planilha'],
   ['/estoque', 'Estoque'],
   ['/clientes', 'Clientes'],
+  ['/relatorios', 'Relatórios'],
   ['/vendas', 'Vendas'],
   ['/caixas', 'Caixas'],
-  ['/usuarios', 'Usuários'],
+  ['/financeiro', 'Financeiro'],
+  ['/usuarios', 'Funcionários'],
   ['/config', 'Configurações'],
 ];
 

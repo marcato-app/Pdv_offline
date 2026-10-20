@@ -24,18 +24,26 @@ img{max-width:40mm;max-height:20mm;display:block;margin:0 auto 2mm}
 </style></head><body>${body}</body></html>`;
 }
 
-async function header() {
-  const store = await getSetting<StoreInfo>('store', DEFAULT_STORE);
-  return `${store.logo ? `<img src="${store.logo}">` : ''}<h1>${esc(store.name)}</h1>
-<div class="c">${[store.cnpj && 'CNPJ ' + store.cnpj, store.address, store.phone].filter(Boolean).map((x) => esc(String(x))).join('<br>')}</div><hr>`;
+async function header(override?: StoreInfo) {
+  const store = override || (await getSetting<StoreInfo>('store', DEFAULT_STORE));
+  const lines = [
+    store.legalName,
+    [store.cnpj && 'CNPJ ' + store.cnpj, store.ie && 'IE ' + store.ie].filter(Boolean).join('  '),
+    store.address,
+    store.city,
+    store.phone && 'Tel ' + store.phone,
+  ].filter(Boolean) as string[];
+  return `${store.logo && store.receiptShowLogo !== false ? `<img src="${store.logo}">` : ''}<h1>${esc(store.name)}</h1>
+<div class="c">${lines.map(esc).join('<br>')}</div>${store.receiptHeader ? `<hr><div class="c">${esc(store.receiptHeader)}</div>` : ''}<hr>`;
 }
 
-export async function receiptHtml(sale: Sale) {
-  const store = await getSetting<StoreInfo>('store', DEFAULT_STORE);
-  const items = sale.items.filter((i) => !i.canceled).map((i, n) => `<tr><td colspan="2">${n + 1} ${esc(i.description)}</td></tr>
+/** Cupom da venda. `override` permite mostrar a prévia com dados ainda não salvos. */
+export async function receiptHtml(sale: Sale, override?: StoreInfo) {
+  const store = override || (await getSetting<StoreInfo>('store', DEFAULT_STORE));
+  const items = sale.items.filter((i) => !i.canceled).map((i, n) => `<tr><td colspan="2">${n + 1} ${store.receiptShowBarcode && i.barcode ? esc(i.barcode) + ' ' : ''}${esc(i.description)}</td></tr>
 <tr><td>${qtyFmt(i.qty)} ${i.unit} x ${dec2(i.unitPrice)}</td><td class="r">${dec2(i.total)}</td></tr>`).join('');
   const pays = sale.payments.map((p) => `<tr><td>${PAYMENT_LABELS[p.method]}${p.installments ? ` ${p.installments}x` : ''}</td><td class="r">${dec2(p.amount)}</td></tr>`).join('');
-  return wrap(`${await header()}
+  return wrap(`${await header(override)}
 <div class="c b">CUPOM NÃO FISCAL</div>
 <div>Venda ${sale.number} · ${dateTime(sale.createdAt)}<br>Operador: ${esc(sale.operatorName)}${sale.cpf ? `<br>CPF: ${formatCpf(sale.cpf)}` : ''}</div><hr>
 <table>${items}</table><hr>
