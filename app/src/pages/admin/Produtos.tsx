@@ -8,6 +8,7 @@ import { resizeImage } from '../../lib/theme';
 import { Photo } from '../../components/ui';
 
 export function Produtos() {
+  const nav = useNavigate();
   const [t, setT] = useState('');
   const [limit, setLimit] = useState(100);
   const list = useLiveQuery(async () => {
@@ -21,7 +22,7 @@ export function Produtos() {
     <>
       <div className="page-head">
         <h1>Produtos <span className="muted" style={{ fontSize: 16 }}>({count})</span></h1>
-        <div className="row"><Link className="btn" to="/admin/importar">Importar planilha</Link><Link className="btn primary" to="/admin/produtos/novo">+ Novo produto</Link></div>
+        <div className="row"><Link className="btn" to="/importar">Importar planilha</Link><Link className="btn primary" to="/produtos/novo">+ Novo produto</Link></div>
       </div>
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <input className="input" placeholder="Buscar por nome, código ou marca" value={t} onChange={(e) => setT(e.target.value)} />
@@ -30,7 +31,7 @@ export function Produtos() {
             <thead><tr><th>Produto</th><th>Código</th><th>Marca</th><th>Categoria</th><th className="right">Preço</th><th className="right">Estoque</th></tr></thead>
             <tbody>
               {list?.map((p) => (
-                <tr key={p.id} className="click" onClick={() => (location.hash = `#/admin/produtos/${p.id}`)}>
+                <tr key={p.id} className="click" onClick={() => nav(`/produtos/${p.id}`)}>
                   <td>{p.description}{!p.active && <span className="chip warn" style={{ marginLeft: 8 }}>Inativo</span>}</td>
                   <td>{p.barcode}</td><td>{p.brand}</td><td>{p.category}</td>
                   <td className="right">{money(p.price)}</td>
@@ -102,7 +103,7 @@ export function ProdutoForm() {
     await save<Product>('products', rec);
     const newStock = parseNum(stockTxt);
     if (newStock !== stock) await setStock(rec.id, newStock, stock, isNew ? 'inicial' : 'ajuste');
-    nav('/admin/produtos');
+    nav('/produtos');
   };
 
   const F = (k: keyof Product, label: string, list?: string[]) => (
@@ -178,8 +179,8 @@ export function ProdutoForm() {
         <div className="spread">
           <span className="chip ok">Salvo neste aparelho e enviado para a nuvem</span>
           <div className="row">
-            {!isNew && <button className="btn danger" onClick={async () => { if (confirm('Excluir este produto?')) { await remove('products', p.id!); nav('/admin/produtos'); } }}>Excluir</button>}
-            <button className="btn" onClick={() => nav('/admin/produtos')}>Cancelar</button>
+            {!isNew && <button className="btn danger" onClick={async () => { if (confirm('Excluir este produto?')) { await remove('products', p.id!); nav('/produtos'); } }}>Excluir</button>}
+            <button className="btn" onClick={() => nav('/produtos')}>Cancelar</button>
             <button className="btn primary" onClick={submit}>Salvar produto</button>
           </div>
         </div>

@@ -13,3 +13,10 @@ CREATE TABLE IF NOT EXISTS records (
 );
 CREATE INDEX IF NOT EXISTS records_seq ON records (store_id, seq);
 CREATE INDEX IF NOT EXISTS records_tbl ON records (store_id, tbl, updated_at);
+
+-- Lojas. O "id" é o código que aparece no link: visionpdv.marcatoapp.com.br/<id>/
+CREATE TABLE IF NOT EXISTS stores (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);

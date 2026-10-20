@@ -18,6 +18,4 @@ binding = "DB"
 database_name = "vision-pdv-db"
 database_id = "f4fa7665-92dd-4ee3-b1be-2fb1d086cce8"
 
-[vars]
-STORE_ID = "loja1"
-# A chave de acesso NÃO fica aqui. Ela é cadastrada como segredo (API_KEY).
+# A chave mestra (para criar lojas) é o segredo API_KEY. Ela não fica neste arquivo.

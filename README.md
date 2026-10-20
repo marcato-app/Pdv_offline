@@ -47,23 +47,22 @@ desktop/   App de Windows (Electron)
 worker/    Servidor da nuvem (Cloudflare Worker + D1), que também entrega o site
 ```
 
-## 1. Nuvem e site (Cloudflare)
+## 1. Nuvem, lojas e links
 
-Tudo fica em **https://visionpdv.marcatoapp.com.br**: o site e o servidor que sincroniza os caixas.
-O banco `vision-pdv-db` já foi criado na conta da Cloudflare, com as tabelas.
+Tudo fica em **https://visionpdv.marcatoapp.com.br** (site + servidor). O banco é o `vision-pdv-db` na Cloudflare.
 
-A publicação é automática pelo GitHub (workflow **Publicar na Cloudflare**) sempre que a branch `main` muda.
-Ela precisa de 3 segredos em **Settings › Secrets and variables › Actions**:
+- **Cada tela tem seu link**: `/pdv` (frente de caixa), `/painel`, `/produtos`, `/importar`, `/estoque`,
+  `/clientes`, `/vendas`, `/caixas`, `/usuarios`, `/config`, `/login`.
+- **Várias lojas**: na página inicial, *Criar uma loja nova* pede a **chave mestra** (segredo `API_KEY` do servidor),
+  para só o dono do Vision PDV cadastrar lojas.
+- **Aparelho novo**: abra `https://visionpdv.marcatoapp.com.br/?loja=codigo-da-loja` (ou digite o código na página inicial)
+  e entre com usuário e senha. O login é conferido na nuvem e os dados são baixados. Depois funciona offline.
+  No app de Windows e no celular, digite o código da loja.
+- **Recomeçar neste aparelho** (na tela de login) apaga só os dados locais; a nuvem continua com tudo.
 
-| Segredo | O que é |
-| --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Token criado na Cloudflare em *My Profile › API Tokens*, modelo **Edit Cloudflare Workers**, com permissão extra **D1: Edit** |
-| `CLOUDFLARE_ACCOUNT_ID` | ID da conta (aparece no painel da Cloudflare, na lateral da página *Workers & Pages*) |
-| `VISION_API_KEY` | Uma senha longa inventada por você. É a **chave de acesso** que os caixas usam |
-
-No sistema: **Configurações › Nuvem** já vem com o endereço. Basta colocar a chave, **Testar conexão** e **Salvar**.
-Para os outros caixas, celulares e tablets: na primeira tela escolha **Conectar a uma loja existente**
-e use a mesma chave. Em **Configurações › Caixa**, dê um número diferente para cada caixa (01, 02, 03…).
+Publicação automática pelo GitHub (workflow **Publicar na Cloudflare**) quando a `main` muda. Segredos necessários
+em **Settings › Secrets and variables › Actions**: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` e
+`VISION_API_KEY` (a chave mestra).
 
 ## 2. Instaladores (Windows e Android)
 

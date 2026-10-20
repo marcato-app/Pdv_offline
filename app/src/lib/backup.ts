@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import { db, SYNCED_TABLES, getDevice, setDevice } from './db';
+import { STORE_SLUG } from './store';
 
 // Ponte com o app de Windows (Electron). No site e no celular ela não existe.
 interface DesktopBridge {
@@ -22,7 +23,7 @@ export const desktop = () => window.visionDesktop;
 class BackupDB extends Dexie {
   files!: Table<{ name: string; createdAt: number; content: string }, string>;
   constructor() {
-    super('vision-pdv-backups');
+    super('vision-pdv-backups-' + (STORE_SLUG || '_'));
     this.version(1).stores({ files: 'name, createdAt' });
   }
 }
@@ -55,7 +56,7 @@ export async function importData(json: string) {
 function backupName(reason: string) {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, '0');
-  return `vision-pdv_${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}_${reason}.json`;
+  return `vision-pdv_${STORE_SLUG}_${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}_${reason}.json`;
 }
 
 export async function makeBackup(reason: 'auto' | 'manual' | 'fechamento' = 'manual') {

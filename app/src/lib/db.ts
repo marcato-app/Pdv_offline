@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie';
+import { STORE_SLUG } from './store';
 
 // Campos comuns a todo registro que sincroniza com a nuvem.
 export interface Synced {
@@ -180,8 +181,8 @@ class VisionDB extends Dexie {
   outbox!: Table<OutboxEntry, number>;
   stockCache!: Table<StockCache, string>;
 
-  constructor() {
-    super('vision-pdv');
+  constructor(name: string) {
+    super(name);
     this.version(1).stores({
       products: 'id, barcode, internalCode, description, category, updatedAt',
       customers: 'id, name, cpf, phone, updatedAt',
@@ -199,7 +200,9 @@ class VisionDB extends Dexie {
   }
 }
 
-export const db = new VisionDB();
+// Cada loja tem seu próprio banco no aparelho.
+export const DB_NAME = 'vision-pdv-' + (STORE_SLUG || '_');
+export const db = new VisionDB(DB_NAME);
 
 export function uid(): string {
   return crypto.randomUUID();

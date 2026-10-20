@@ -1,4 +1,5 @@
 import { db, applyStockDelta, getDevice, setDevice, SYNCED_TABLES, type SyncedTable, type Synced } from './db';
+import { API_BASE } from './store';
 
 export interface SyncStatus {
   configured: boolean;
@@ -29,21 +30,18 @@ export function onSyncStatus(fn: (s: SyncStatus) => void) {
 
 export interface SyncConfig {
   url: string;
-  apiKey: string;
+  token: string;
 }
 
-/** Endereço oficial da nuvem. No site, é o próprio endereço da página. */
-export const DEFAULT_SYNC_URL = 'https://visionpdv.marcatoapp.com.br';
-
+/** O acesso da loja (recebido no login pela nuvem) fica salvo neste aparelho. */
 export async function getSyncConfig(): Promise<SyncConfig | null> {
-  const cfg = await getDevice<SyncConfig | null>('sync', null);
-  return cfg && cfg.url && cfg.apiKey ? cfg : null;
+  const token = await getDevice<string | null>('token', null);
+  return token ? { url: API_BASE, token } : null;
 }
 
-export async function setSyncConfig(cfg: SyncConfig | null) {
-  await setDevice('sync', cfg);
-  await setDevice('syncCursor', 0);
-  syncNow();
+export async function setToken(token: string | null) {
+  await setDevice('token', token);
+  if (!token) await setDevice('syncCursor', 0);
 }
 
 interface RemoteRecord {
@@ -55,10 +53,11 @@ interface RemoteRecord {
 }
 
 async function request(cfg: SyncConfig, path: string, init?: RequestInit) {
-  const res = await fetch(cfg.url.replace(/\/+$/, '') + path, {
+  const res = await fetch(cfg.url + path, {
     ...init,
-    headers: { 'content-type': 'application/json', 'x-api-key': cfg.apiKey, ...(init?.headers || {}) },
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${cfg.token}`, ...(init?.headers || {}) },
   });
+  if (res.status === 401) throw new Error('Acesso expirado. Saia e entre de novo.');
   if (!res.ok) throw new Error(`Servidor respondeu ${res.status}`);
   return res.json();
 }
@@ -130,7 +129,9 @@ export function syncNow(): Promise<void> {
   return running;
 }
 
-export async function testConnection(cfg: SyncConfig) {
+export async function testConnection() {
+  const cfg = await getSyncConfig();
+  if (!cfg) throw new Error('Este aparelho ainda não entrou na nuvem');
   return request(cfg, '/health');
 }
 

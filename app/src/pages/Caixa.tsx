@@ -144,7 +144,7 @@ export function Caixa() {
     return <OpenCash onOpen={async (amount) => {
       const s = await openSession(user, amount);
       setSession(s);
-    }} onBack={() => (canManage(user) ? nav('/admin') : (setUser(null), nav('/login')))} />;
+    }} onBack={() => (canManage(user) ? nav('/painel') : (setUser(null), nav('/login')))} />;
   }
 
   const current = selected >= 0 ? items[selected] : null;
@@ -317,7 +317,7 @@ export function Caixa() {
       }} />}
       {modal === 'menu' && (
         <Modal title="Menu" onClose={() => setModal(null)}>
-          {canManage(user) && <button className="btn big" onClick={() => nav('/admin')}>Ir para a gestão</button>}
+          {canManage(user) && <button className="btn big" onClick={() => nav('/painel')}>Ir para a gestão</button>}
           <button className="btn big" onClick={() => { setModal(null); syncNow(); }}>Sincronizar agora</button>
           <button className="btn big" onClick={async () => { await makeBackup('manual'); setModal(null); setToast('Backup feito'); }}>Fazer backup agora</button>
           <button className="btn big danger" disabled={!!active.length} onClick={() => { setUser(null); nav('/login'); }}>Trocar operador (sair)</button>

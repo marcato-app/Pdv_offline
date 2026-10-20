@@ -21,7 +21,7 @@ jobs:
         working-directory: app
         run: |
           npm ci
-          npm run build
+          npm run build:app
       - name: Instalador Windows (.exe)
         working-directory: desktop
         run: |
@@ -47,7 +47,7 @@ jobs:
         working-directory: app
         run: |
           npm ci
-          npm run build
+          npm run build:app
           npx cap sync android
       - name: APK Android
         working-directory: app/android

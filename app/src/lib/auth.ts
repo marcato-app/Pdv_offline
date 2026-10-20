@@ -46,3 +46,17 @@ export async function hasAnyUser() {
 }
 
 export const canManage = (u: User | null) => !!u && (u.role === 'admin' || u.role === 'gerente');
+
+/** Login conferido na nuvem: recebe o acesso da loja e baixa os dados para este aparelho. */
+export async function onlineLogin(slug: string, login: string, password: string): Promise<User | null> {
+  const { api } = await import('./store');
+  const { setToken, syncNow } = await import('./sync');
+  const l = login.trim().toLowerCase();
+  const { salt } = await api<{ salt: string }>(`/api/salt?slug=${encodeURIComponent(slug)}&login=${encodeURIComponent(l)}`);
+  const passHash = await hashPassword(password, salt);
+  const res = await api<{ token: string; user: { id: string } }>('/api/login', { method: 'POST', body: JSON.stringify({ slug, login: l, passHash }) });
+  await setToken(res.token);
+  await syncNow();
+  const u = await db.users.get(res.user.id);
+  return u && !u.deleted && u.active ? u : null;
+}

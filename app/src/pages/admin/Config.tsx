@@ -3,7 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { getDevice, setDevice, getSetting, setSetting, db } from '../../lib/db';
 import { DEFAULT_THEME, PRIMARY_OPTIONS, SECONDARY_OPTIONS, applyTheme, resizeImage, type StoreInfo, type Theme } from '../../lib/theme';
 import { DEFAULT_SCALE, type ScaleConfig } from '../../lib/pdv';
-import { getSyncConfig, setSyncConfig, syncNow, testConnection, DEFAULT_SYNC_URL } from '../../lib/sync';
+import { syncNow, testConnection } from '../../lib/sync';
+import { STORE_SLUG, storeLink } from '../../lib/store';
 import { makeBackup, listBackups, readBackup, importData, exportData, downloadText, desktop } from '../../lib/backup';
 import { dateTime } from '../../lib/format';
 import { useApp } from '../../lib/app-context';
@@ -138,26 +139,29 @@ function CaixaCfg() {
 }
 
 function Nuvem() {
-  const [url, setUrl] = useState(DEFAULT_SYNC_URL);
-  const [key, setKey] = useState('');
   const [msg, setMsg] = useState('');
   const pending = useLiveQuery(() => db.outbox.count(), [], 0);
-  useEffect(() => { getSyncConfig().then((c) => { if (c) { setUrl(c.url); setKey(c.apiKey); } }); }, []);
+  const link = STORE_SLUG ? storeLink(STORE_SLUG) : '';
   const test = async () => {
     setMsg('Testando…');
-    try { await testConnection({ url: url.trim(), apiKey: key.trim() }); setMsg('Conexão OK'); } catch (e) { setMsg('Falhou: ' + (e instanceof Error ? e.message : e)); }
+    try { await testConnection(); setMsg('Conexão OK'); } catch (e) { setMsg('Falhou: ' + (e instanceof Error ? e.message : e)); }
   };
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div className="spread"><h2 style={{ fontSize: 18 }}>Cloudflare (banco online)</h2><SyncBadge /></div>
+      <div className="spread"><h2 style={{ fontSize: 18 }}>Nuvem</h2><SyncBadge /></div>
       <p className="muted small" style={{ margin: 0 }}>O sistema funciona sem internet. Quando há conexão, ele envia as vendas e cadastros para a nuvem e recebe o que os outros caixas fizeram. Itens aguardando envio: <b>{pending}</b></p>
-      <div className="field"><label htmlFor="nu">Endereço do servidor</label><input id="nu" value={url} onChange={(e) => setUrl(e.target.value)} /></div>
-      <div className="field"><label htmlFor="nk">Chave de acesso</label><input id="nk" type="password" value={key} onChange={(e) => setKey(e.target.value)} /></div>
+      <div className="field">
+        <span className="label">Link para abrir a loja em outro aparelho</span>
+        <div className="row">
+          <span className="chip" style={{ fontSize: 14, padding: 10, wordBreak: 'break-all' }}>{link}</span>
+          <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(link); setMsg('Link copiado'); }}>Copiar</button>
+        </div>
+        <span className="muted small">No app de Windows ou do celular, use o código da loja: <b>{STORE_SLUG}</b></span>
+      </div>
       {msg && <span className="chip">{msg}</span>}
       <div className="row" style={{ justifyContent: 'flex-end' }}>
         <button className="btn" onClick={test}>Testar conexão</button>
-        <button className="btn" onClick={() => syncNow()}>Sincronizar agora</button>
-        <button className="btn primary" onClick={async () => { await setSyncConfig(url.trim() ? { url: url.trim(), apiKey: key.trim() } : null); setMsg('Salvo'); }}>Salvar</button>
+        <button className="btn primary" onClick={() => syncNow()}>Sincronizar agora</button>
       </div>
     </div>
   );

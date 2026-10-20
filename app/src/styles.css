@@ -145,6 +145,7 @@ table.t tr.click:hover td { background: #faf9fd; }
 /* ---------- Login ---------- */
 .login { min-height: 100vh; display: flex; flex-wrap: wrap; }
 .login-brand { flex: 1 1 420px; background: var(--secondary); color: #fff; padding: 48px; display: flex; flex-direction: column; justify-content: space-between; gap: 32px; }
+.login-brand .hero { display: flex; flex-direction: column; gap: 14px; max-width: 440px; }
 .login-form { flex: 1 1 420px; display: flex; align-items: center; justify-content: center; padding: 32px 20px; }
 .login-form form { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 18px; }
 @media (max-width: 700px) { .login-brand { padding: 28px 20px; } .login-brand .hero { display: none; } }
