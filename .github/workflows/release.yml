@@ -1,9 +1,11 @@
 name: Gerar instaladores
 
 # Roda quando você cria uma tag (ex.: v1.0.0) ou manualmente na aba Actions.
+# Também roda em qualquer envio cuja mensagem tenha [gerar-instalador].
 on:
   push:
     tags: ['v*']
+    branches: ['**']
   workflow_dispatch:
 
 permissions:
@@ -11,6 +13,7 @@ permissions:
 
 jobs:
   windows:
+    if: github.event_name != 'push' || github.ref_type == 'tag' || contains(github.event.head_commit.message, '[gerar-instalador]')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +36,7 @@ jobs:
           path: desktop/release/*.exe
 
   android:
+    if: github.event_name != 'push' || github.ref_type == 'tag' || contains(github.event.head_commit.message, '[gerar-instalador]')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -70,9 +74,10 @@ jobs:
       - name: Publicar na página de Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}
-          name: Vision PDV ${{ github.ref_type == 'tag' && github.ref_name || format('build {0}', github.run_number) }}
-          prerelease: ${{ github.ref_type != 'tag' }}
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v1.0.{0}', github.run_number) }}
+          name: Vision PDV ${{ github.ref_type == 'tag' && github.ref_name || format('1.0.{0}', github.run_number) }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
           files: |
             out/windows/*.exe
             out/android/*.apk
