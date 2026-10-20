@@ -25,7 +25,7 @@ const Router = IS_APP ? HashRouter : BrowserRouter;
 function Guard({ children, manager }: { children: ReactNode; manager?: boolean }) {
   const { user } = useApp();
   const [ready, setReady] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setReady(true), 150); return () => clearTimeout(t); }, []);
+  useEffect(() => { const t = setTimeout(() => setReady(true), 400); return () => clearTimeout(t); }, []);
   if (!user) return ready ? <Navigate to="/login" replace state={{ from: location.pathname }} /> : null;
   if (manager && !canManage(user)) return <Navigate to="/pdv" replace />;
   return <>{children}</>;

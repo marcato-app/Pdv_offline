@@ -3,6 +3,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type User } from './db';
 import { DEFAULT_STORE, DEFAULT_THEME, applyTheme, type StoreInfo, type Theme } from './theme';
 import { onSyncStatus, getSyncStatus, type SyncStatus } from './sync';
+import { STORE_SLUG } from './store';
+
+const UID_KEY = `vision-uid-${STORE_SLUG}`;
 
 interface Ctx {
   user: User | null;
@@ -13,6 +16,7 @@ interface Ctx {
 }
 
 const AppCtx = createContext<Ctx>(null as unknown as Ctx);
+export const AppCtxRef = AppCtx;
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<User | null>(null);
@@ -31,14 +35,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     document.title = `${store.name} · Vision PDV`;
   }, [store.name]);
 
-  // Mantém o login enquanto o app está aberto (sobrevive a recarregar a página).
+  // Fica conectado neste aparelho até tocar em "Sair".
   useEffect(() => {
-    const id = sessionStorage.getItem('uid');
-    if (id) db.users.get(id).then((u) => u && !u.deleted && u.active && setUserState(u));
+    const id = localStorage.getItem(UID_KEY);
+    if (id) db.users.get(id).then((u) => (u && !u.deleted && u.active ? setUserState(u) : localStorage.removeItem(UID_KEY)));
   }, []);
   const setUser = (u: User | null) => {
-    if (u) sessionStorage.setItem('uid', u.id);
-    else sessionStorage.removeItem('uid');
+    if (u) localStorage.setItem(UID_KEY, u.id);
+    else localStorage.removeItem(UID_KEY);
     setUserState(u);
   };
 

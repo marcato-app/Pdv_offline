@@ -144,6 +144,31 @@ async function findUser(env: Env, storeId: string, login: string): Promise<UserD
   return u.active ? u : null;
 }
 
+/** Procura o usuário pelo e-mail em todas as lojas (login só com e-mail e senha). */
+async function findUserByEmail(env: Env, email: string): Promise<(UserData & { storeId: string }) | null> {
+  if (!email.includes('@')) return null;
+  const { results } = await env.DB.prepare(
+    `SELECT store_id, data FROM records WHERE tbl = 'users' AND deleted = 0
+       AND (lower(json_extract(data, '$.email')) = ?1 OR lower(json_extract(data, '$.login')) = ?1) LIMIT 5`,
+  ).bind(email).all<{ store_id: string; data: string }>();
+  for (const r of results) {
+    const u = JSON.parse(r.data) as UserData;
+    if (u.active) return { ...u, storeId: r.store_id };
+  }
+  // Lojas antigas: o administrador não tinha e-mail; usa o e-mail do cadastro da loja.
+  const st = await env.DB.prepare('SELECT id FROM stores WHERE lower(email) = ? ORDER BY created_at LIMIT 1').bind(email).first<{ id: string }>();
+  if (st) {
+    const row = await env.DB.prepare(
+      `SELECT data FROM records WHERE store_id = ? AND tbl = 'users' AND deleted = 0 AND json_extract(data, '$.role') = 'admin' ORDER BY updated_at LIMIT 1`,
+    ).bind(st.id).first<{ data: string }>();
+    if (row) {
+      const u = JSON.parse(row.data) as UserData;
+      if (u.active) return { ...u, storeId: st.id };
+    }
+  }
+  return null;
+}
+
 async function api(req: Request, env: Env, url: URL): Promise<Response> {
   const p = url.pathname;
 
@@ -162,10 +187,19 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
       if ((recent?.n || 0) >= 3) return json({ error: 'Muitas lojas criadas a partir desta internet hoje. Tente amanhã ou fale com o suporte.' }, 429);
     }
     const body = await req.json<{ slug?: string; name?: string; email?: string; phone?: string; records?: PushRecord[] }>();
-    const slug = (body.slug || '').toLowerCase();
+    let slug = (body.slug || '').toLowerCase();
+    if (RESERVED.has(slug)) slug = `${slug}-loja`;
     if (!SLUG_RE.test(slug) || RESERVED.has(slug)) return json({ error: 'Código da loja inválido. Use letras minúsculas, números e hífen (3 a 40).' }, 400);
     if (!body.name?.trim()) return json({ error: 'Informe o nome da loja' }, 400);
-    if (await getStore(env, slug)) return json({ error: 'Este código já está em uso. Escolha outro.' }, 409);
+    const email = (body.email || '').trim().toLowerCase();
+    if (email && (await findUserByEmail(env, email))) return json({ error: 'Este e-mail já tem uma loja. Use "Entrar" com ele.' }, 409);
+    // Código interno da loja: se já existir, acrescenta um número.
+    let free = slug;
+    for (let n = 2; await getStore(env, free); n++) {
+      if (n > 50) return json({ error: 'Escolha outro nome de loja' }, 409);
+      free = `${slug.slice(0, 36)}-${n}`;
+    }
+    slug = free;
     const trialDays = Math.max(0, Number(env.TRIAL_DAYS ?? 7) || 7);
     const stmt = upsertStmt(env);
     const recs = (Array.isArray(body.records) ? body.records : []).filter(validRecord).slice(0, 20);
@@ -174,26 +208,31 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
         .bind(slug, body.name.trim().slice(0, 80), (body.email || '').trim().slice(0, 120) || null, (body.phone || '').trim().slice(0, 30) || null, Date.now(), ip, Date.now() + trialDays * DAY),
       ...recs.map((r) => stmt.bind(slug, r.tbl, r.id, JSON.stringify(r.data), Math.floor(r.updatedAt), r.deleted ? 1 : 0)),
     ]);
-    return json({ ok: true, slug, trialDays, token: await makeToken(env, slug) });
+    return json({ ok: true, slug, trialDays, token: await makeToken(env, slug), license: licenseOf(env, (await getStore(env, slug))!) });
   }
 
   // Login, passo 1: o "sal" da senha. Para usuário que não existe, devolve um sal falso e estável.
   if (p === '/api/salt' && req.method === 'GET') {
     const slug = (url.searchParams.get('slug') || '').toLowerCase();
-    const login = (url.searchParams.get('login') || '').trim().toLowerCase();
-    const u = SLUG_RE.test(slug) ? await findUser(env, slug, login) : null;
+    const login = (url.searchParams.get('login') || url.searchParams.get('email') || '').trim().toLowerCase();
+    const u = slug ? (SLUG_RE.test(slug) ? await findUser(env, slug, login) : null) : await findUserByEmail(env, login);
     return json({ salt: u ? u.salt : (await hmac(env, `fake-salt:${slug}:${login}`)).slice(0, 36) });
   }
 
   // Login, passo 2: o aparelho manda a senha já embaralhada (PBKDF2) e recebe o acesso da loja.
   if (p === '/api/login' && req.method === 'POST') {
-    const body = await req.json<{ slug?: string; login?: string; passHash?: string }>();
-    const slug = (body.slug || '').toLowerCase();
-    const login = (body.login || '').trim().toLowerCase();
-    const u = SLUG_RE.test(slug) ? await findUser(env, slug, login) : null;
-    if (!u || !safeEqual(body.passHash || '', u.passHash)) return json({ error: 'Usuário ou senha incorretos' }, 401);
+    const body = await req.json<{ slug?: string; login?: string; email?: string; passHash?: string }>();
+    let slug = (body.slug || '').toLowerCase();
+    let u: UserData | null = null;
+    if (slug) {
+      u = SLUG_RE.test(slug) ? await findUser(env, slug, (body.login || '').trim().toLowerCase()) : null;
+    } else {
+      const f = await findUserByEmail(env, (body.email || body.login || '').trim().toLowerCase());
+      if (f) { u = f; slug = f.storeId; }
+    }
+    if (!u || !safeEqual(body.passHash || '', u.passHash)) return json({ error: 'E-mail ou senha incorretos' }, 401);
     const s = await getStore(env, slug);
-    return json({ token: await makeToken(env, slug), user: { id: u.id, name: u.name, role: u.role }, license: s ? licenseOf(env, s) : null });
+    return json({ slug, storeName: s?.name, token: await makeToken(env, slug), user: { id: u.id, name: u.name, role: u.role }, license: s ? licenseOf(env, s) : null });
   }
 
   // ---------- Painel do dono (chave mestra) ----------

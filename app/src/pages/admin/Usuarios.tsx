@@ -41,16 +41,20 @@ function UserModal({ user, onClose }: { user: User | null; onClose: () => void }
   const [pass, setPass] = useState('');
   const [err, setErr] = useState('');
   const [cpf, setCpf] = useState(user?.cpf || '');
+  const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [job, setJob] = useState(user?.jobTitle || '');
   const [salary, setSalary] = useState(user?.salary ? dec2(user.salary) : '');
   const [hired, setHired] = useState(user?.hiredAt ? new Date(user.hiredAt).toISOString().slice(0, 10) : '');
-  const extra = () => ({ cpf: onlyDigits(cpf) || undefined, phone: phone.trim() || undefined, jobTitle: job.trim() || undefined, salary: parseNum(salary) || undefined, hiredAt: hired ? new Date(hired + 'T12:00:00').getTime() : undefined });
+  const extra = () => ({ email: email.trim().toLowerCase() || undefined, cpf: onlyDigits(cpf) || undefined, phone: phone.trim() || undefined, jobTitle: job.trim() || undefined, salary: parseNum(salary) || undefined, hiredAt: hired ? new Date(hired + 'T12:00:00').getTime() : undefined });
   const submit = async () => {
     setErr('');
     if (!name.trim() || !login.trim()) return setErr('Preencha nome e usuário');
     const dup = await db.users.where('login').equals(login.trim().toLowerCase()).filter((u) => !u.deleted && u.id !== user?.id).first();
     if (dup) return setErr('Este usuário já existe');
+    const mail = email.trim().toLowerCase();
+    if (mail && !/^\S+@\S+\.\S+$/.test(mail)) return setErr('E-mail inválido');
+    if (mail && (await db.users.filter((u) => !u.deleted && u.id !== user?.id && u.email === mail).first())) return setErr('Este e-mail já está em outro funcionário');
     if (!user) {
       if (pass.length < 4) return setErr('Senha com pelo menos 4 caracteres');
       const u = await createUser({ name, login, password: pass, role });
@@ -64,7 +68,8 @@ function UserModal({ user, onClose }: { user: User | null; onClose: () => void }
   return (
     <Modal title={user ? 'Editar funcionário' : 'Novo funcionário'} wide onClose={onClose} footer={<><button className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" onClick={submit}>Salvar</button></>}>
       <div className="field"><label htmlFor="un">Nome</label><input id="un" autoFocus value={name} onChange={(e) => setName(e.target.value)} /></div>
-      <div className="field"><label htmlFor="ul">Usuário (para entrar)</label><input id="ul" autoCapitalize="none" value={login} onChange={(e) => setLogin(e.target.value)} /></div>
+      <div className="field"><label htmlFor="uem">E-mail (para entrar em qualquer aparelho)</label><input id="uem" type="email" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+      <div className="field"><label htmlFor="ul">Usuário (para entrar no caixa)</label><input id="ul" autoCapitalize="none" value={login} onChange={(e) => setLogin(e.target.value)} /></div>
       <div className="grid">
         <div className="field"><label htmlFor="ujob">Cargo</label><input id="ujob" placeholder="ex.: Operador de caixa, Açougueiro" value={job} onChange={(e) => setJob(e.target.value)} /></div>
         <div className="field"><label htmlFor="ucpf">CPF</label><input id="ucpf" inputMode="numeric" value={formatCpf(cpf)} onChange={(e) => setCpf(onlyDigits(e.target.value))} /></div>

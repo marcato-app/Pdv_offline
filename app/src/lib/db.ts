@@ -150,6 +150,7 @@ export interface User extends Synced {
   salt: string;
   role: 'admin' | 'gerente' | 'operador';
   active: 0 | 1;
+  email?: string;
   cpf?: string;
   phone?: string;
   jobTitle?: string; // cargo

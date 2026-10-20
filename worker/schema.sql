@@ -81,3 +81,6 @@ CREATE TABLE IF NOT EXISTS wa_log (
   sent_at  INTEGER NOT NULL,
   PRIMARY KEY (store_id, day)
 );
+
+-- Login por e-mail: acha o usuário rápido em qualquer loja.
+CREATE INDEX IF NOT EXISTS records_user_email ON records (lower(json_extract(data, '$.email'))) WHERE tbl = 'users';

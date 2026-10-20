@@ -9,6 +9,7 @@ import { startAutoBackup } from './lib/backup';
 import { STORE_SLUG } from './lib/store';
 import { StartPage } from './pages/Login';
 import { Dono } from './pages/Dono';
+import { finishPendingLogin } from './lib/auth';
 
 // Pede ao navegador para não apagar os dados locais quando faltar espaço.
 navigator.storage?.persist?.().catch(() => undefined);
@@ -20,6 +21,8 @@ if (location.pathname.startsWith('/dono')) {
   // Nenhuma loja escolhida neste aparelho: página inicial (entrar ou criar loja).
   createRoot(document.getElementById('root')!).render(<StrictMode><StartPage /></StrictMode>);
 } else db.open().then(async () => {
+  // Login feito na página inicial: termina aqui (salva o acesso e baixa os dados).
+  await finishPendingLogin(STORE_SLUG!).catch(() => undefined);
   await loadTheme();
   startSyncLoop();
   startAutoBackup();

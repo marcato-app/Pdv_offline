@@ -53,8 +53,8 @@ export function openStore(slug: string) {
 }
 
 export function leaveStore() {
+  localStorage.removeItem(`vision-uid-${localStorage.getItem('vision-store')}`);
   localStorage.removeItem('vision-store');
-  sessionStorage.removeItem('uid');
   goHome();
 }
 

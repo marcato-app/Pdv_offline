@@ -14,12 +14,13 @@ export async function hashPassword(password: string, salt: string): Promise<stri
   return toHex(bits);
 }
 
-export async function createUser(data: { name: string; login: string; password: string; role: User['role'] }) {
+export async function createUser(data: { name: string; login: string; password: string; role: User['role']; email?: string }) {
   const salt = uid();
   return save<User>('users', {
     id: uid(),
     name: data.name.trim(),
     login: data.login.trim().toLowerCase(),
+    email: data.email?.trim().toLowerCase() || undefined,
     salt,
     passHash: await hashPassword(data.password, salt),
     role: data.role,
@@ -33,7 +34,8 @@ export async function setPassword(user: User, password: string) {
 }
 
 export async function checkLogin(login: string, password: string): Promise<User | null> {
-  const users = await db.users.where('login').equals(login.trim().toLowerCase()).toArray();
+  const l = login.trim().toLowerCase();
+  const users = await db.users.filter((u) => u.login === l || (!!u.email && u.email === l)).toArray();
   for (const u of users) {
     if (u.deleted || !u.active) continue;
     if ((await hashPassword(password, u.salt)) === u.passHash) return u;
@@ -61,4 +63,43 @@ export async function onlineLogin(slug: string, login: string, password: string)
   await syncNow();
   const u = await db.users.get(res.user.id);
   return u && !u.deleted && u.active ? u : null;
+}
+
+export interface EmailLoginResult {
+  slug: string;
+  storeName?: string;
+  token: string;
+  user: { id: string; name: string; role: string };
+  license: import('./license').License | null;
+}
+
+/** Login só com e-mail e senha: a nuvem diz qual é a loja. */
+export async function emailLogin(email: string, password: string): Promise<EmailLoginResult> {
+  const { api } = await import('./store');
+  const e = email.trim().toLowerCase();
+  const { salt } = await api<{ salt: string }>(`/api/salt?email=${encodeURIComponent(e)}`);
+  const passHash = await hashPassword(password, salt);
+  return api<EmailLoginResult>('/api/login', { method: 'POST', body: JSON.stringify({ email: e, passHash }) });
+}
+
+const PENDING = 'vision-pending-login';
+
+/** Guarda o login feito na página inicial para terminar depois de abrir a loja. */
+export function setPendingLogin(r: { slug: string; token: string; userId: string; license: unknown }) {
+  localStorage.setItem(PENDING, JSON.stringify(r));
+}
+
+/** Termina o login: salva o acesso, baixa os dados e deixa o usuário conectado neste aparelho. */
+export async function finishPendingLogin(slug: string) {
+  const raw = localStorage.getItem(PENDING);
+  if (!raw) return;
+  localStorage.removeItem(PENDING);
+  const r = JSON.parse(raw) as { slug: string; token: string; userId: string; license: import('./license').License | null };
+  if (r.slug !== slug) return;
+  const { setToken, syncNow } = await import('./sync');
+  const { saveLicense } = await import('./license');
+  await setToken(r.token);
+  await saveLicense(r.license);
+  await syncNow();
+  localStorage.setItem(`vision-uid-${slug}`, r.userId);
 }
