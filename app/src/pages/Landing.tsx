@@ -9,14 +9,15 @@ import './landing.css';
 const go = (path: string) => () => location.assign(path);
 
 /** Faz os blocos surgirem suavemente quando entram na tela. */
-function useReveal() {
+function useReveal(deps: unknown[]) {
   useEffect(() => {
-    const els = document.querySelectorAll('.v-reveal');
+    // Só os blocos que ainda não apareceram (os planos chegam da nuvem depois e trocam com Mensal/Anual).
+    const els = document.querySelectorAll('.v-reveal:not(.in)');
     if (!('IntersectionObserver' in window)) { els.forEach((e) => e.classList.add('in')); return; }
     const io = new IntersectionObserver((list) => list.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.12 });
     els.forEach((e) => io.observe(e));
     return () => io.disconnect();
-  }, []);
+  }, deps);
 }
 
 function useFonts() {
@@ -193,7 +194,7 @@ export function Landing() {
   const heroRef = useRef<HTMLElement>(null);
   const [pastHero, setPastHero] = useState(false);
   useFonts();
-  useReveal();
+  useReveal([p, yearly]);
   useEffect(() => { getPlatform().then(setP); initTracking(); }, []);
   useEffect(() => {
     const f = () => { setScrolled(scrollY > 8); setPastHero(scrollY > (heroRef.current?.offsetHeight || 600) - 200); };
