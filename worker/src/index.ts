@@ -182,7 +182,7 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
   // Criar loja nova (cadastro aberto, com dias grátis).
   if (p === '/api/stores' && req.method === 'POST') {
     const ip = req.headers.get('cf-connecting-ip') || '';
-    if (!isMaster(env, req)) {
+    if (!isMaster(env, req) && ip) {
       const recent = await env.DB.prepare('SELECT COUNT(*) n FROM stores WHERE created_ip = ? AND created_at > ?').bind(ip, Date.now() - DAY).first<{ n: number }>();
       if ((recent?.n || 0) >= 3) return json({ error: 'Muitas lojas criadas a partir desta internet hoje. Tente amanhã ou fale com o suporte.' }, 429);
     }

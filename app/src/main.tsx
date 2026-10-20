@@ -10,6 +10,9 @@ import { STORE_SLUG } from './lib/store';
 import { StartPage } from './pages/Login';
 import { Dono } from './pages/Dono';
 import { finishPendingLogin } from './lib/auth';
+import { startTableLabels } from './lib/table-labels';
+
+startTableLabels();
 
 // Pede ao navegador para não apagar os dados locais quando faltar espaço.
 navigator.storage?.persist?.().catch(() => undefined);

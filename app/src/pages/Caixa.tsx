@@ -199,11 +199,11 @@ export function Caixa() {
   return (
     <div className="pdv">
       <header className="pdv-head">
-        <div className="row"><Logo /><span style={{ fontSize: 18, fontWeight: 800 }}>{store.name}</span></div>
+        <div className="row" style={{ flexWrap: 'nowrap', minWidth: 0 }}><Logo /><span style={{ fontSize: 18, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{store.name}</span></div>
         <div className="info">
           <span>Caixa {register}</span>
-          <span>{user.name}</span>
-          <span>{new Date(clock).toLocaleDateString('pt-BR')} · {timeOnly(clock)}</span>
+          <span className="hide-m">{user.name}</span>
+          <span className="hide-m">{new Date(clock).toLocaleDateString('pt-BR')} · {timeOnly(clock)}</span>
           <SyncBadge />
         </div>
       </header>
@@ -228,9 +228,9 @@ export function Caixa() {
           <section className="pdv-left">
             <div className="current">
               <Photo src={current ? photoOf[current.productId] : undefined} size={190} />
-              <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center' }}>
+              <div style={{ flex: '1 1 280px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center' }}>
                 {lastProduct && current?.productId === lastProduct.id && (
-                  <div className="row" style={{ gap: 6 }}>
+                  <div className="row chips" style={{ gap: 6 }}>
                     {lastProduct.category && <span className="chip">{lastProduct.category}{lastProduct.subcategory ? ' › ' + lastProduct.subcategory : ''}</span>}
                     {lastProduct.basket && <span className="chip ok">{lastProduct.basket}</span>}
                   </div>
@@ -238,9 +238,9 @@ export function Caixa() {
                 <h2>{current?.description}</h2>
                 <span className="muted">{[lastProduct?.id === current?.productId && lastProduct?.brand, current?.barcode].filter(Boolean).join(' · ')}</span>
                 {current && (
-                  <div className="row" style={{ gap: 26, alignItems: 'baseline' }}>
-                    <span style={{ fontSize: 20, fontWeight: 600 }}>{qtyFmt(current.qty)} {current.unit} × {money(current.unitPrice)}</span>
-                    <span style={{ fontSize: 40, fontWeight: 800, color: 'var(--primary)' }}>{money(current.total)}</span>
+                  <div className="row" style={{ gap: '4px 26px', alignItems: 'baseline' }}>
+                    <span className="unit-line" style={{ fontSize: 20, fontWeight: 600 }}>{qtyFmt(current.qty)} {current.unit} × {money(current.unitPrice)}</span>
+                    <span className="big-price" style={{ fontSize: 40, fontWeight: 800, color: 'var(--primary)' }}>{money(current.total)}</span>
                   </div>
                 )}
               </div>
@@ -256,7 +256,7 @@ export function Caixa() {
                     <tr key={i} className={(i === selected ? 'sel ' : '') + (it.canceled ? 'cut' : '') + ' click'} onClick={() => setSelected(i)}>
                       <td>{i + 1}</td>
                       <td>{it.description}</td>
-                      <td>{qtyFmt(it.qty)} {it.unit}</td>
+                      <td>{qtyFmt(it.qty)} {it.unit}<span className="only-m"> × {dec2(it.unitPrice)}</span></td>
                       <td>{dec2(it.unitPrice)}</td>
                       <td className="right">{dec2(it.total)}</td>
                     </tr>
@@ -268,32 +268,34 @@ export function Caixa() {
         )}
 
         <aside className="pdv-right">
+          <div className="pdv-paybar">
           <div className="total-box">
-            <div className="spread" style={{ fontSize: 15, color: '#e4dcfa' }}><span>{active.length} {active.length === 1 ? 'item' : 'itens'} · {qtyFmt(volumes)} {volumes === 1 ? 'volume' : 'volumes'}</span><span>{money(subtotal)}</span></div>
-            <div className="spread" style={{ fontSize: 15, color: '#e4dcfa' }}><span>Desconto (F4)</span><span>{money(discount)}</span></div>
-            <div style={{ fontSize: 14, fontWeight: 700, marginTop: 6 }}>TOTAL A PAGAR</div>
+            <div className="spread sub" style={{ fontSize: 15, color: '#e4dcfa' }}><span>{active.length} {active.length === 1 ? 'item' : 'itens'} · {qtyFmt(volumes)} {volumes === 1 ? 'volume' : 'volumes'}</span><span>{money(subtotal)}</span></div>
+            <div className="spread sub" style={{ fontSize: 15, color: '#e4dcfa' }}><span>Desconto (F4)</span><span>{money(discount)}</span></div>
+            <div className="lbl" style={{ fontSize: 14, fontWeight: 700, marginTop: 6 }}>TOTAL A PAGAR</div>
             <div className="big">{money(total)}</div>
           </div>
-          <div className="card" style={{ padding: 16, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14 }}>
+          <button className="btn primary big pay-btn" style={{ height: 64 }} disabled={!active.length} onClick={() => setModal('pay')}>Pagamento (F10)</button>
+          </div>
+          <div className="card pdv-extra" style={{ padding: 16, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14 }}>
             <span className="muted">Cliente (F7)</span>
             <b>{customer ? customer.name : 'Consumidor final'}</b>
             {cpf && <span>CPF {formatCpf(cpf)}</span>}
           </div>
           {!active.length && (
-            <div className="card" style={{ padding: 16, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14 }}>
+            <div className="card pdv-extra" style={{ padding: 16, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14 }}>
               <div className="spread"><span className="muted">Fundo de troco</span><b>{money(session.openingAmount)}</b></div>
               <div className="spread"><span className="muted">Vendas neste turno</span><b>{salesToday}</b></div>
               {lastSale && <div className="spread"><span className="muted">Última venda</span><b>{lastSale.number} · {money(lastSale.total)}</b></div>}
               {lastSale && <button className="btn sm ghost" onClick={async () => { if (await authorize('reimprimir')) printHtml(await receiptHtml(lastSale)); }}>Reimprimir último cupom</button>}
             </div>
           )}
-          <button className="btn primary big" style={{ marginTop: 'auto', height: 64 }} disabled={!active.length} onClick={() => setModal('pay')}>Pagamento (F10)</button>
-          {!!active.length && <button className="btn ghost" onClick={ask('cancelarVenda', 'cancelSale')}>Cancelar venda (Ctrl+F6)</button>}
+          {!!active.length && <button className="btn ghost pdv-extra" onClick={ask('cancelarVenda', 'cancelSale')}>Cancelar venda (Ctrl+F6)</button>}
         </aside>
       </div>
 
       <footer className="pdv-foot">
-        {shortcuts.map(([k, l, fn]) => <button key={k} onClick={fn}><span className="kbd">{k}</span>{l}</button>)}
+        {shortcuts.map(([k, l, fn]) => <button key={k} className={'k-' + k} onClick={fn}><span className="kbd">{k}</span>{l}</button>)}
       </footer>
 
       {toast && <div style={{ position: 'fixed', top: 80, left: '50%', transform: 'translateX(-50%)', background: 'var(--danger)', color: '#fff', padding: '14px 22px', borderRadius: 14, fontWeight: 700, zIndex: 60 }}>{toast}</div>}
