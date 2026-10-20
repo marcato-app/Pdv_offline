@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Product } from '../../lib/db';
+import { db, save, uid, type Product, type Batch } from '../../lib/db';
+import { LossModal } from '../../components/LossModal';
 import { setStock, addStock } from '../../lib/pdv';
 import { qtyFmt, parseNum, dateTime } from '../../lib/format';
 import { Modal } from '../../components/ui';
@@ -12,6 +13,7 @@ export function Estoque() {
   const [filter, setFilter] = useState<'todos' | 'baixo' | 'zerado'>('todos');
   const [edit, setEdit] = useState<{ p: Row; mode: 'ajuste' | 'entrada' } | null>(null);
   const [hist, setHist] = useState<Row | null>(null);
+  const [loss, setLoss] = useState<Row | null>(null);
   const data = useLiveQuery(async () => {
     const all = await db.products.filter((p) => !p.deleted && !!p.active).toArray();
     const st = await db.stockCache.bulkGet(all.map((p) => p.id));
@@ -53,6 +55,7 @@ export function Estoque() {
                   <td className="right" style={{ whiteSpace: 'nowrap' }}>
                     <button className="btn sm" onClick={() => setEdit({ p, mode: 'entrada' })}>Entrada</button>{' '}
                     <button className="btn sm" onClick={() => setEdit({ p, mode: 'ajuste' })}>Ajustar</button>{' '}
+                    <button className="btn sm danger" onClick={() => setLoss(p)}>Perda</button>{' '}
                     <button className="btn sm ghost" onClick={() => setHist(p)}>Histórico</button>
                   </td>
                 </tr>
@@ -64,16 +67,23 @@ export function Estoque() {
       </div>
       {edit && <StockModal row={edit.p} mode={edit.mode} onClose={() => setEdit(null)} />}
       {hist && <HistoryModal row={hist} onClose={() => setHist(null)} />}
+      {loss && <LossModal product={loss} onClose={() => setLoss(null)} />}
     </>
   );
 }
 
 function StockModal({ row, mode, onClose }: { row: Row; mode: 'ajuste' | 'entrada'; onClose: () => void }) {
   const [v, setV] = useState(mode === 'ajuste' ? qtyFmt(row.stock) : '');
+  const [exp, setExp] = useState('');
+  const [note, setNote] = useState('');
   const ok = async () => {
     const n = parseNum(v);
     if (mode === 'ajuste') await setStock(row.id, n, row.stock, 'ajuste');
-    else await addStock(row.id, n, 'entrada');
+    else {
+      await addStock(row.id, n, 'entrada');
+      // Validade do lote: avisa antes de vencer (Validade e perdas).
+      if (exp && n > 0) await save<Batch>('batches', { id: uid(), productId: row.id, productName: row.description, qty: n, expiresAt: new Date(exp + 'T00:00:00').getTime(), status: 'ativo', note: note || undefined, createdAt: Date.now() });
+    }
     onClose();
   };
   return (
@@ -84,11 +94,17 @@ function StockModal({ row, mode, onClose }: { row: Row; mode: 'ajuste' | 'entrad
       <div className="field"><label htmlFor="sv">{mode === 'ajuste' ? 'Quantidade correta (contada)' : 'Quantidade que chegou'}</label>
         <input id="sv" className="input big" autoFocus inputMode="decimal" value={v} onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && ok()} />
       </div>
+      {mode === 'entrada' && (
+        <div className="grid">
+          <div className="field"><label htmlFor="sexp">Validade (opcional)</label><input id="sexp" type="date" value={exp} onChange={(e) => setExp(e.target.value)} /></div>
+          <div className="field"><label htmlFor="snote">Lote / observação</label><input id="snote" value={note} onChange={(e) => setNote(e.target.value)} /></div>
+        </div>
+      )}
     </Modal>
   );
 }
 
-const REASONS: Record<string, string> = { inicial: 'Estoque inicial', venda: 'Venda', cancelamento: 'Venda cancelada', ajuste: 'Ajuste', entrada: 'Entrada', inventario: 'Inventário' };
+const REASONS: Record<string, string> = { inicial: 'Estoque inicial', venda: 'Venda', cancelamento: 'Venda cancelada', ajuste: 'Ajuste', entrada: 'Entrada', inventario: 'Inventário', perda: 'Perda' };
 
 function HistoryModal({ row, onClose }: { row: Row; onClose: () => void }) {
   const moves = useLiveQuery(() => db.stockMoves.where('productId').equals(row.id).reverse().sortBy('createdAt'), [row.id]);

@@ -13,6 +13,10 @@ routes = [
 directory = "../app/dist"
 binding = "ASSETS"
 
+# Verifica de hora em hora se é a hora do resumo no WhatsApp de cada loja.
+[triggers]
+crons = ["5 * * * *"]
+
 [[d1_databases]]
 binding = "DB"
 database_name = "vision-pdv-db"

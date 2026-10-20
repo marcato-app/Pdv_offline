@@ -49,3 +49,35 @@ CREATE TABLE IF NOT EXISTS payments (
   provider   TEXT,
   created_at INTEGER NOT NULL
 );
+
+-- Banco de produtos compartilhado (cadastro automático pelo código de barras).
+CREATE TABLE IF NOT EXISTS catalog (
+  barcode      TEXT PRIMARY KEY,
+  description  TEXT,
+  brand        TEXT,
+  manufacturer TEXT,
+  category     TEXT,
+  subcategory  TEXT,
+  basket       TEXT,
+  content      TEXT,
+  ncm          TEXT,
+  photo        TEXT,
+  source       TEXT,
+  uses         INTEGER NOT NULL DEFAULT 0,
+  updated_at   INTEGER NOT NULL
+);
+
+-- Credenciais de cada loja (Mercado Pago, WhatsApp). Ficam só no servidor.
+CREATE TABLE IF NOT EXISTS store_secrets (
+  store_id   TEXT PRIMARY KEY,
+  data       TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+-- Resumos de WhatsApp já enviados (um por loja por dia).
+CREATE TABLE IF NOT EXISTS wa_log (
+  store_id TEXT NOT NULL,
+  day      INTEGER NOT NULL,
+  sent_at  INTEGER NOT NULL,
+  PRIMARY KEY (store_id, day)
+);

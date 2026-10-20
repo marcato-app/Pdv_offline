@@ -6,7 +6,8 @@ import { db, round2, round3, getDevice, type CashSession, type Product, type Sal
 import { findProduct, makeItem, makeManualItem, searchProducts, finalizeSale, currentSession, openSession, addCashMove, sessionSummary, closeSession, customerBalance, DEFAULT_QUICK_ITEMS, type SessionSummary, type QuickItem } from '../lib/pdv';
 import { useAuthorize, type Action } from '../lib/permissions';
 import { getScaleSettings, readWeight } from '../lib/scale';
-import { getSetting } from '../lib/db';
+import { getSetting, save, uid } from '../lib/db';
+import { lookupBarcode, photoToDataUrl, type CatalogItem } from '../lib/catalog';
 import { money, dec2, qtyFmt, parseNum, PAYMENT_LABELS, formatCpf, isValidCpf, onlyDigits, timeOnly } from '../lib/format';
 import { receiptHtml, closingHtml, cashMoveHtml, printHtml } from '../lib/receipt';
 import { makeBackup } from '../lib/backup';
@@ -15,6 +16,9 @@ import { canManage } from '../lib/auth';
 import { Logo, Modal, Photo, SyncBadge } from '../components/ui';
 import { ExpiredScreen, LicenseBanner } from '../components/license';
 import { useLicense } from '../lib/license';
+import { ExternalPay } from '../components/ExternalPay';
+import { loadPayConfig } from '../lib/payments';
+import type { PixKey } from '../lib/pix';
 
 type ModalKind = null | 'qty' | 'discount' | 'search' | 'cancelItem' | 'cancelSale' | 'customer' | 'sangria' | 'suprimento' | 'pay' | 'done' | 'close' | 'menu' | 'manual' | 'unknown' | 'weight';
 
@@ -300,6 +304,16 @@ export function Caixa() {
         if (!(await authorize('valorManual'))) return;
         addManual(makeManualItem('naocadastrado', desc, price, qty, unknownCode));
         setModal(null);
+      }} onCreate={async (it, price, qty, photo) => {
+        if (!(await authorize('valorManual'))) return;
+        // Cadastro relâmpago com os dados do banco de produtos.
+        const prod = await save<Product>('products', {
+          id: uid(), barcode: unknownCode, description: it.description || 'PRODUTO', brand: it.brand || undefined, manufacturer: it.manufacturer || undefined,
+          category: it.category || undefined, subcategory: it.subcategory || undefined, basket: it.basket || undefined, content: it.content || undefined,
+          ncm: it.ncm || undefined, photo, unit: 'UN', cost: 0, price, minStock: 0, active: 1,
+        });
+        addProduct(prod, qty);
+        setModal(null);
       }} />}
       {modal === 'weight' && weighing && <NumberModal title={`Peso · ${weighing.description}`} label="Peso em kg (ex.: 0,850)" initial="" onClose={() => setModal(null)} onOk={(v) => { if (v > 0) addProduct(weighing, round3(v)); setModal(null); }} />}
       {modal === 'qty' && <NumberModal title="Quantidade do próximo item" label="Quantidade" initial={String(nextQty)} onClose={() => setModal(null)} onOk={(v) => { if (v > 0) setNextQty(v); setModal(null); }} />}
@@ -389,19 +403,42 @@ function ManualModal({ onClose, onAdd }: { onClose: () => void; onAdd: (it: Sale
   );
 }
 
-function UnknownModal({ code, onClose, onAdd }: { code: string; onClose: () => void; onAdd: (desc: string, price: number, qty: number) => void }) {
+function UnknownModal({ code, onClose, onAdd, onCreate }: { code: string; onClose: () => void; onAdd: (desc: string, price: number, qty: number) => void; onCreate: (it: CatalogItem, price: number, qty: number, photo?: string) => void }) {
   const [desc, setDesc] = useState('PRODUTO NÃO CADASTRADO');
   const [price, setPrice] = useState('');
   const [qty, setQty] = useState('1');
-  useEffect(() => { beep(); }, []);
-  const ok = () => { const v = parseNum(price); if (v > 0) onAdd(desc.trim() || 'PRODUTO NÃO CADASTRADO', v, Math.max(0.001, parseNum(qty) || 1)); };
+  const [found, setFound] = useState<CatalogItem | null | undefined>(undefined);
+  useEffect(() => {
+    beep();
+    lookupBarcode(code).then((it) => { setFound(it); if (it?.description) setDesc(it.description.toUpperCase()); });
+  }, []);
+  const v = () => parseNum(price);
+  const q = () => Math.max(0.001, parseNum(qty) || 1);
+  const ok = () => { if (v() > 0) onAdd(desc.trim() || 'PRODUTO NÃO CADASTRADO', v(), q()); };
+  const create = async () => {
+    if (!found || v() <= 0) return;
+    const photo = found.photo ? await photoToDataUrl(found.photo) : undefined;
+    onCreate({ ...found, description: desc.trim() || found.description }, v(), q(), photo);
+  };
   return (
-    <Modal title="Produto não cadastrado" onClose={onClose} footer={<><button className="btn" onClick={onClose}>Não vender (Esc)</button><button className="btn primary" onClick={ok}>Vender assim mesmo (Enter)</button></>}>
-      <p style={{ margin: 0 }}>O código <b>{code}</b> não tem cadastro. Você pode vender informando o preço. Ele vai aparecer em <b>Produtos</b> para cadastrar depois, e esta venda passa a contar para ele.</p>
+    <Modal title="Produto não cadastrado" onClose={onClose} footer={<>
+      <button className="btn" onClick={onClose}>Não vender (Esc)</button>
+      <button className={'btn ' + (found ? '' : 'primary')} onClick={ok}>Vender sem cadastrar{found ? '' : ' (Enter)'}</button>
+      {found && <button className="btn primary" onClick={create}>Cadastrar e vender (Enter)</button>}
+    </>}>
+      {found === undefined && <span className="muted small">Procurando no banco de produtos…</span>}
+      {found ? (
+        <div className="row" style={{ alignItems: 'center', gap: 14, background: 'var(--ok-bg)', padding: 12, borderRadius: 14 }}>
+          {found.photo && <img src={found.photo} alt="" style={{ width: 64, height: 64, objectFit: 'contain', background: '#fff', borderRadius: 10 }} />}
+          <span style={{ color: 'var(--ok)' }}><b>Encontrado no banco de produtos.</b><br />Informe o preço para cadastrar e vender agora.</span>
+        </div>
+      ) : (
+        <p style={{ margin: 0 }}>O código <b>{code}</b> não tem cadastro. Você pode vender informando o preço. Ele vai aparecer em <b>Produtos</b> para cadastrar depois, e esta venda passa a contar para ele.</p>
+      )}
       <div className="field"><label htmlFor="ucd">Descrição</label><input id="ucd" value={desc} onFocus={(e) => e.target.select()} onChange={(e) => setDesc(e.target.value)} /></div>
       <div className="row" style={{ flexWrap: 'nowrap' }}>
-        <div className="field" style={{ flex: 2 }}><label htmlFor="ucp">Preço</label><input id="ucp" className="input big" autoFocus inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && ok()} /></div>
-        <div className="field" style={{ flex: 1 }}><label htmlFor="ucq">Qtd</label><input id="ucq" className="input big" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && ok()} /></div>
+        <div className="field" style={{ flex: 2 }}><label htmlFor="ucp">Preço</label><input id="ucp" className="input big" autoFocus inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (found ? create() : ok())} /></div>
+        <div className="field" style={{ flex: 1 }}><label htmlFor="ucq">Qtd</label><input id="ucq" className="input big" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (found ? create() : ok())} /></div>
       </div>
     </Modal>
   );
@@ -535,6 +572,13 @@ function PayModal({ total, customer, onClose, onPaid }: { total: number; custome
   const [amount, setAmount] = useState('');
   const [inst, setInst] = useState('2');
   const [err, setErr] = useState('');
+  const [external, setExternal] = useState<{ kind: 'pix-mp' | 'pix-static' | 'point'; p: Payment } | null>(null);
+  const refId = useRef(crypto.randomUUID());
+  // Configuração de PIX/maquininha: carrega ao abrir; a confirmação espera ela terminar.
+  const cfgPromise = useRef<Promise<{ pay: Awaited<ReturnType<typeof loadPayConfig>>; pixKey: PixKey | null }> | null>(null);
+  if (!cfgPromise.current) cfgPromise.current = (async () => ({ pay: await loadPayConfig(), pixKey: await getSetting<PixKey | null>('pixKey', null) }))();
+  const [cfg, setCfg] = useState<{ pay: Awaited<ReturnType<typeof loadPayConfig>>; pixKey: PixKey | null } | undefined>(undefined);
+  useEffect(() => { cfgPromise.current!.then(setCfg); }, []);
   const amountRef = useRef<HTMLInputElement>(null);
   const paid = round2(payments.reduce((s, p) => s + p.amount, 0));
   const remaining = round2(Math.max(0, total - paid));
@@ -561,6 +605,17 @@ function PayModal({ total, customer, onClose, onPaid }: { total: number; custome
     }
     value = round2(value);
     const p: Payment = { method, amount: value, ...(method === 'credito_parcelado' ? { installments: Math.max(2, Math.round(parseNum(inst))) } : {}) };
+    // PIX e cartão: cobra direto (QR na tela ou valor na maquininha) quando está configurado.
+    const online = navigator.onLine;
+    const cfg = await cfgPromise.current!;
+    if (method === 'pix' && online && cfg?.pay?.mercadoPago) return setExternal({ kind: 'pix-mp', p });
+    if (method === 'pix' && cfg?.pixKey?.key) return setExternal({ kind: 'pix-static', p });
+    if (['debito', 'credito', 'credito_parcelado'].includes(method) && online && cfg?.pay?.mpPointDeviceId) return setExternal({ kind: 'point', p });
+    addPayment(p);
+  };
+
+  const addPayment = (p: Payment) => {
+    setExternal(null);
     const next = [...payments, p];
     if (round2(next.reduce((s, x) => s + x.amount, 0)) + 0.001 >= total) return onPaid(next);
     setPayments(next);
@@ -569,7 +624,7 @@ function PayModal({ total, customer, onClose, onPaid }: { total: number; custome
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (step !== 'method') return;
+      if (step !== 'method' || external) return;
       const m = METHODS.find((x) => x.key === e.key);
       if (m) { e.preventDefault(); choose(m.method); }
       if (e.key === 'Enter') { e.preventDefault(); choose(method); }
@@ -577,6 +632,18 @@ function PayModal({ total, customer, onClose, onPaid }: { total: number; custome
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   });
+
+  if (external) {
+    const cardType = external.p.method === 'debito' ? 'debit_card' : 'credit_card';
+    return (
+      <Modal title={external.kind === 'point' ? 'Pagamento na maquininha' : 'Pagamento com PIX'} onClose={() => setExternal(null)}>
+        <ExternalPay kind={external.kind} amount={external.p.amount} refId={refId.current + '-' + payments.length} pixKey={cfg?.pixKey}
+          cardType={cardType} installments={external.p.installments}
+          onApproved={(ref) => addPayment({ ...external.p, ref, provider: external.kind === 'pix-static' ? 'pix-chave' : 'mercadopago' })}
+          onCancel={() => setExternal(null)} />
+      </Modal>
+    );
+  }
 
   return (
     <Modal title="Forma de pagamento" wide onClose={() => (step === 'amount' ? setStep('method') : onClose())}

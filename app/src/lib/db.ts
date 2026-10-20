@@ -29,6 +29,7 @@ export interface Product extends Synced {
   cfop?: string;
   photo?: string; // data URL (jpeg pequeno)
   active: 0 | 1;
+  supplier?: string; // fornecedor principal (para a lista de compras)
 }
 
 export interface Customer extends Synced {
@@ -76,6 +77,8 @@ export interface Payment {
   method: PaymentMethod;
   amount: number;
   installments?: number;
+  ref?: string; // código da cobrança no PIX/maquininha
+  provider?: string; // mercadopago, pix-chave…
 }
 
 export interface Sale extends Synced {
@@ -119,8 +122,24 @@ export interface CashMove extends Synced {
 export interface StockMove extends Synced {
   productId: string;
   qty: number;
-  reason: 'inicial' | 'venda' | 'cancelamento' | 'ajuste' | 'entrada' | 'inventario';
+  reason: 'inicial' | 'venda' | 'cancelamento' | 'ajuste' | 'entrada' | 'inventario' | 'perda';
   refId?: string;
+  createdAt: number;
+  lossReason?: LossReason;
+  unitCost?: number; // custo na hora da perda
+  note?: string;
+}
+
+export type LossReason = 'vencido' | 'quebra' | 'avaria' | 'furto' | 'consumo' | 'outro';
+
+// Lote com validade (entrada de mercadoria). Avisa antes de vencer.
+export interface Batch extends Synced {
+  productId: string;
+  productName: string;
+  qty: number;
+  expiresAt: number;
+  status: 'ativo' | 'resolvido';
+  note?: string;
   createdAt: number;
 }
 
@@ -203,6 +222,7 @@ export const SYNCED_TABLES = [
   'settings',
   'pendingProducts',
   'bills',
+  'batches',
 ] as const;
 export type SyncedTable = (typeof SYNCED_TABLES)[number];
 
@@ -218,6 +238,7 @@ class VisionDB extends Dexie {
   settings!: Table<Setting, string>;
   pendingProducts!: Table<PendingProduct, string>;
   bills!: Table<Bill, string>;
+  batches!: Table<Batch, string>;
   device!: Table<DeviceConfig, string>;
   outbox!: Table<OutboxEntry, number>;
   stockCache!: Table<StockCache, string>;
@@ -241,6 +262,9 @@ class VisionDB extends Dexie {
     this.version(2).stores({
       pendingProducts: 'id, barcode, lastSeen, updatedAt',
       bills: 'id, dueDate, paidAt, category, seriesId, updatedAt',
+    });
+    this.version(3).stores({
+      batches: 'id, productId, expiresAt, status, updatedAt',
     });
   }
 }

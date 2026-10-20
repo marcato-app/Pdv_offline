@@ -2,30 +2,26 @@
 // - Entrega o site. Cada loja tem seu link: /codigo-da-loja/
 // - API: criar loja, login na nuvem e sincronização dos aparelhos.
 
+import { CORS, json } from './util';
+import { catalogApi } from './catalog';
+import { paymentsApi, secretsApi } from './payments';
+import { whatsappApi, sendDailySummaries } from './whatsapp';
+
 export interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
   API_KEY: string; // chave mestra: painel do dono (gerar chaves de ativação, ver lojas)
   TRIAL_DAYS?: string; // dias grátis para loja nova (padrão 7)
   CHECKOUT_URL?: string; // link de compra; recebe ?loja=<codigo>
+  COSMOS_TOKEN?: string; // opcional: base de produtos Bluesoft Cosmos
 }
 
-const TABLES = new Set(['products', 'customers', 'creditEntries', 'sales', 'cashSessions', 'cashMoves', 'stockMoves', 'users', 'settings', 'pendingProducts', 'bills']);
+const TABLES = new Set(['products', 'customers', 'creditEntries', 'sales', 'cashSessions', 'cashMoves', 'stockMoves', 'users', 'settings', 'pendingProducts', 'bills', 'batches']);
 const MAX_PUSH = 500;
 const MAX_PULL = 1000;
 const TOKEN_DAYS = 365;
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;
 const RESERVED = new Set(['api', 'sync', 'health', 'assets', 'admin', 'www', 'app', 'static']);
-
-const CORS = {
-  'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'GET, POST, OPTIONS',
-  'access-control-allow-headers': 'content-type, authorization, x-master-key',
-  'access-control-max-age': '86400',
-};
-
-const json = (data: unknown, status = 200) =>
-  new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', ...CORS } });
 
 function safeEqual(a: string, b: string) {
   if (!a || !b || a.length !== b.length) return false;
@@ -232,6 +228,8 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
       await env.DB.prepare('UPDATE stores SET blocked = ? WHERE id = ?').bind(b.blocked ? 1 : 0, (b.slug || '').toLowerCase()).run();
       return json({ ok: true });
     }
+    const cat = await catalogApi(req, env, url, null, true);
+    if (cat) return cat;
     return json({ error: 'Não encontrado' }, 404);
   }
 
@@ -239,6 +237,11 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
   const storeId = await readToken(env, req);
   if (!storeId) return json({ error: 'Acesso expirado. Entre de novo.' }, 401);
   if (p === '/health') return json({ ok: true, store: storeId });
+
+  for (const handler of [catalogApi(req, env, url, storeId, false), secretsApi(req, env, url, storeId), paymentsApi(req, env, url, storeId), whatsappApi(req, env, url, storeId)]) {
+    const res = await handler;
+    if (res) return res;
+  }
 
   // Situação da licença da loja.
   if (p === '/api/license' && req.method === 'GET') {
@@ -265,6 +268,11 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
 }
 
 export default {
+  // De hora em hora: resumo do dia no WhatsApp das lojas.
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(sendDailySummaries(env));
+  },
+
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     const p = url.pathname;

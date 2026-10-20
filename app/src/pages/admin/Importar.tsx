@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import * as XLSX from 'xlsx';
+import { readWorkbook } from '../../lib/sheet';
 import { db, save, uid, SYNCED_TABLES, type Product } from '../../lib/db';
 import { addStock } from '../../lib/pdv';
 import { parseNum } from '../../lib/format';
+import { contribute } from '../../lib/catalog';
 
-type FieldKey = 'barcode' | 'description' | 'brand' | 'manufacturer' | 'basket' | 'category' | 'subcategory' | 'content' | 'price' | 'cost' | 'stock' | 'unit' | 'internalCode' | 'ncm';
+export type FieldKey = 'barcode' | 'description' | 'brand' | 'manufacturer' | 'basket' | 'category' | 'subcategory' | 'content' | 'price' | 'cost' | 'stock' | 'unit' | 'internalCode' | 'ncm';
 
-const FIELDS: { key: FieldKey; label: string; guess: string[] }[] = [
+export const FIELDS: { key: FieldKey; label: string; guess: string[] }[] = [
   { key: 'barcode', label: 'Código de barras', guess: ['codigodebarra', 'codigodebarras', 'ean', 'gtin', 'codbarras', 'barcode', 'codigo'] },
   { key: 'description', label: 'Descritivo', guess: ['descritivo', 'descricao', 'produto', 'nome', 'description'] },
   { key: 'brand', label: 'Marca', guess: ['marca', 'brand'] },
@@ -25,7 +27,7 @@ const FIELDS: { key: FieldKey; label: string; guess: string[] }[] = [
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-function guessMap(headers: string[]) {
+export function guessMap(headers: string[]) {
   const map: Partial<Record<FieldKey, string>> = {};
   const used = new Set<string>();
   for (const f of FIELDS) {
@@ -42,7 +44,7 @@ function guessMap(headers: string[]) {
   return map;
 }
 
-const cell = (v: unknown) => (v === undefined || v === null ? '' : typeof v === 'number' && Number.isInteger(v) ? v.toFixed(0) : String(v).trim());
+export const cell = (v: unknown) => (v === undefined || v === null ? '' : typeof v === 'number' && Number.isInteger(v) ? v.toFixed(0) : String(v).trim());
 
 export function Importar() {
   const [fileName, setFileName] = useState('');
@@ -65,7 +67,7 @@ export function Importar() {
   const onFile = async (f: File) => {
     setErr('');
     try {
-      const book = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+      const book = await readWorkbook(f);
       setFileName(f.name); setWb(book); loadSheet(book, book.SheetNames[0]);
     } catch {
       setErr('Não consegui ler este arquivo. Use .xlsx, .xls ou .csv');
@@ -113,6 +115,7 @@ export function Importar() {
     }
     setProgress(null);
     setResult({ created, updated, skipped });
+    contribute([...byCode.values()]);
   };
 
   return (

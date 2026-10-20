@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/store';
 import { dateOnly, dateTime } from '../lib/format';
 import { STATUS_LABEL, type License } from '../lib/license';
+import * as XLSX from 'xlsx';
+import { readWorkbook } from '../lib/sheet';
+import { guessMap, cell, type FieldKey } from './admin/Importar';
 
 // Painel do dono do Vision PDV: ver lojas, gerar chaves de ativação e dar dias.
 // Abre em visionpdv.marcatoapp.com.br/dono e pede a chave mestra.
@@ -12,7 +15,7 @@ interface Key { code: string; days: number; note: string | null; created_at: num
 export function Dono() {
   const [master, setMaster] = useState(() => sessionStorage.getItem('vision-master') || '');
   const [ok, setOk] = useState(false);
-  const [tab, setTab] = useState<'lojas' | 'chaves'>('lojas');
+  const [tab, setTab] = useState<'lojas' | 'chaves' | 'produtos'>('lojas');
   const [stores, setStores] = useState<StoreInfo[]>([]);
   const [keys, setKeys] = useState<Key[]>([]);
   const [err, setErr] = useState('');
@@ -81,6 +84,7 @@ export function Dono() {
         <div className="row">
           <button className={'btn sm ' + (tab === 'lojas' ? 'secondary' : '')} onClick={() => setTab('lojas')}>Lojas</button>
           <button className={'btn sm ' + (tab === 'chaves' ? 'secondary' : '')} onClick={() => setTab('chaves')}>Chaves de ativação</button>
+          <button className={'btn sm ' + (tab === 'produtos' ? 'secondary' : '')} onClick={() => setTab('produtos')}>Banco de produtos</button>
           <button className="btn sm ghost" onClick={() => { sessionStorage.removeItem('vision-master'); setOk(false); setMaster(''); }}>Sair</button>
         </div>
       </div>
@@ -117,6 +121,8 @@ export function Dono() {
         </div>
       )}
 
+      {tab === 'produtos' && <CatalogUpload master={master} />}
+
       {tab === 'chaves' && (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="row" style={{ alignItems: 'flex-end' }}>
@@ -148,6 +154,52 @@ export function Dono() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Sobe a planilha de produtos (código de barras, descritivo, marca…) para o banco compartilhado. */
+function CatalogUpload({ master }: { master: string }) {
+  const [stats, setStats] = useState<{ total: number; withPhoto: number } | null>(null);
+  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const [map, setMap] = useState<Partial<Record<FieldKey, string>>>({});
+  const [progress, setProgress] = useState('');
+  const load = () => api<{ total: number; withPhoto: number }>('/api/admin/catalog', { master }).then(setStats).catch(() => undefined);
+  useEffect(() => { load(); }, []);
+  const onFile = async (f: File) => {
+    const book = await readWorkbook(f);
+    const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(book.Sheets[book.SheetNames[0]], { defval: '', raw: true });
+    setRows(data);
+    setMap(guessMap(data.length ? Object.keys(data[0]) : []));
+  };
+  const get = (r: Record<string, unknown>, k: FieldKey) => (map[k] ? cell(r[map[k]!]) : '');
+  const send = async () => {
+    const items = rows.map((r) => ({
+      barcode: get(r, 'barcode').replace(/\.0+$/, ''), description: get(r, 'description'), brand: get(r, 'brand'), manufacturer: get(r, 'manufacturer'),
+      basket: get(r, 'basket'), category: get(r, 'category'), subcategory: get(r, 'subcategory'), content: get(r, 'content'), ncm: get(r, 'ncm'),
+    })).filter((x) => x.barcode && x.description);
+    let done = 0;
+    for (let i = 0; i < items.length; i += 1000) {
+      const r = await api<{ accepted: number }>('/api/admin/catalog', { method: 'POST', master, body: JSON.stringify({ items: items.slice(i, i + 1000) }) });
+      done += r.accepted;
+      setProgress(`Enviando… ${Math.min(items.length, i + 1000)} de ${items.length}`);
+    }
+    setProgress(`Pronto: ${done} produtos no banco`);
+    load();
+  };
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <h2 style={{ fontSize: 18 }}>Banco de produtos compartilhado</h2>
+      <p className="muted small" style={{ margin: 0 }}>Quando qualquer loja digita ou bipa um código de barras novo, o sistema preenche nome, marca, categoria e NCM sozinho usando este banco. Ele cresce com a sua planilha, com os cadastros das lojas e com bases públicas de produtos.</p>
+      {stats && <div className="grid"><div className="stat"><span className="muted small">Produtos no banco</span><b>{stats.total.toLocaleString('pt-BR')}</b></div><div className="stat"><span className="muted small">Com foto</span><b>{stats.withPhoto.toLocaleString('pt-BR')}</b></div></div>}
+      <label className="btn primary" style={{ cursor: 'pointer', alignSelf: 'flex-start' }}>Escolher planilha (.xlsx, .csv)<input type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} /></label>
+      {rows.length > 0 && (
+        <>
+          <span className="chip">{rows.length} linhas · colunas reconhecidas: {Object.entries(map).map(([k, v]) => `${v} → ${k}`).join(', ') || 'nenhuma'}</span>
+          <button className="btn primary" style={{ alignSelf: 'flex-start' }} disabled={!map.barcode || !map.description} onClick={send}>Enviar para o banco</button>
+        </>
+      )}
+      {progress && <span className="chip ok">{progress}</span>}
     </div>
   );
 }

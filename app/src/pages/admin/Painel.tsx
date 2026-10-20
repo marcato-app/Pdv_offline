@@ -4,6 +4,7 @@ import { db } from '../../lib/db';
 import { money, qtyFmt, PAYMENT_LABELS, startOfDay } from '../../lib/format';
 import { downloadText } from '../../lib/backup';
 import { Link } from 'react-router-dom';
+import { payApi } from '../../lib/payments';
 
 const RANGES = { hoje: 'Hoje', '7': 'Últimos 7 dias', '30': 'Últimos 30 dias' } as const;
 
@@ -59,6 +60,12 @@ export function Painel() {
         <div className="row">
           {(['hoje', '7', '30'] as (keyof typeof RANGES)[]).map((k) => <button key={k} className={'btn sm ' + (range === k ? 'secondary' : '')} onClick={() => setRange(k)}>{RANGES[k]}</button>)}
           <button className="btn sm ghost" onClick={exportCsv}>Exportar CSV</button>
+          <button className="btn sm primary" onClick={async () => {
+            try {
+              const { text } = await payApi<{ text: string }>('/api/whatsapp/summary');
+              window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+            } catch { alert('Precisa de internet para montar o resumo'); }
+          }}>Resumo no WhatsApp</button>
         </div>
       </div>
       {alerts && (alerts.late.length > 0 || alerts.dueToday.length > 0 || alerts.pending > 0) && (

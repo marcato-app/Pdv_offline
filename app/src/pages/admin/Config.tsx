@@ -15,8 +15,11 @@ import { useApp } from '../../lib/app-context';
 import { useLicense, refreshLicense } from '../../lib/license';
 import { ActivateBox, LicenseSummary } from '../../components/license';
 import { Logo, SyncBadge } from '../../components/ui';
+import { loadPayConfig, saveSecrets, payApi, type PayConfig } from '../../lib/payments';
+import { pixCode, type PixKey, type PixKeyType } from '../../lib/pix';
+import QRCode from 'qrcode';
 
-const TABS = { assinatura: 'Assinatura', loja: 'Loja e aparência', cupom: 'Cupom', permissoes: 'Senhas e permissões', caixa: 'Caixa, impressora e balança', nuvem: 'Nuvem', backup: 'Backup' } as const;
+const TABS = { assinatura: 'Assinatura', loja: 'Loja e aparência', cupom: 'Cupom', pagamentos: 'Pagamentos (PIX e maquininha)', whatsapp: 'WhatsApp', permissoes: 'Senhas e permissões', caixa: 'Caixa, impressora e balança', nuvem: 'Nuvem', backup: 'Backup' } as const;
 
 export function Config() {
   const initial = new URLSearchParams(location.search).get('aba') as keyof typeof TABS | null;
@@ -28,6 +31,8 @@ export function Config() {
       {tab === 'assinatura' && <Assinatura />}
       {tab === 'loja' && <Loja />}
       {tab === 'cupom' && <Cupom />}
+      {tab === 'pagamentos' && <Pagamentos />}
+      {tab === 'whatsapp' && <WhatsApp />}
       {tab === 'permissoes' && <Permissoes />}
       {tab === 'caixa' && <><CaixaCfg /><SerialScaleCfg /><QuickItemsCfg /></>}
       {tab === 'nuvem' && <Nuvem />}
@@ -156,6 +161,142 @@ function Cupom() {
         <span className="label">Prévia</span>
         <iframe title="Prévia do cupom" srcDoc={html} style={{ width: 320, height: 560, border: '1px solid var(--line)', borderRadius: 8, background: '#fff' }} />
       </div>
+    </div>
+  );
+}
+
+function Pagamentos() {
+  const [cfg, setCfg] = useState<PayConfig | null>(null);
+  const [token, setToken] = useState('');
+  const [email, setEmail] = useState('');
+  const [devices, setDevices] = useState<{ id: string; mode: string }[] | null>(null);
+  const [msg, setMsg] = useState('');
+  const [pix, setPix] = useState<PixKey>({ type: 'cnpj', key: '', name: '', city: '' });
+  const [qr, setQr] = useState('');
+  const { store } = useApp();
+  useEffect(() => {
+    loadPayConfig().then((c) => { setCfg(c); setEmail(c?.pixPayerEmail || ''); });
+    getSetting<PixKey | null>('pixKey', null).then((k) => k && setPix(k));
+  }, []);
+  useEffect(() => { if (pix.key) QRCode.toDataURL(pixCode({ ...pix, name: pix.name || store.name, city: pix.city || 'BRASIL' }, 1), { width: 160, margin: 1 }).then(setQr); else setQr(''); }, [pix.key, pix.type, pix.name, pix.city]);
+  const run = async (fn: () => Promise<void>) => { setMsg(''); try { await fn(); } catch (e) { setMsg(e instanceof Error ? e.message : String(e)); } };
+
+  return (
+    <>
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="spread"><h2 style={{ fontSize: 18 }}>Mercado Pago</h2>{cfg?.mercadoPago ? <span className="chip ok">Conectado {cfg.mpAccessToken}</span> : <span className="chip">Não conectado</span>}</div>
+        <p className="muted small" style={{ margin: 0 }}>
+          Com o Mercado Pago, o <b>PIX aparece em QR na tela e a venda fecha sozinha</b> quando o cliente paga, e o valor do cartão vai sozinho para a <b>maquininha Point</b>.
+          Pegue o <b>Access Token de produção</b> em mercadopago.com.br/developers › Suas integrações › Credenciais. O token fica guardado só no servidor.
+        </p>
+        <div className="grid">
+          <div className="field"><label htmlFor="mpt">Access Token</label><input id="mpt" type="password" autoComplete="off" placeholder={cfg?.mpAccessToken || 'APP_USR-...'} value={token} onChange={(e) => setToken(e.target.value)} /></div>
+          <div className="field"><label htmlFor="mpe">E-mail do pagador padrão (opcional)</label><input id="mpe" placeholder="cliente@sualoja.com.br" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+        </div>
+        <div className="row">
+          <button className="btn primary" onClick={() => run(async () => { const c = await saveSecrets({ ...(token ? { mpAccessToken: token } : {}), pixPayerEmail: email }); setCfg(c); setToken(''); setMsg('Salvo'); })}>Salvar</button>
+          {cfg?.mercadoPago && <button className="btn danger" onClick={() => run(async () => { setCfg(await saveSecrets({ mpAccessToken: '', mpPointDeviceId: '' })); setMsg('Mercado Pago desconectado'); })}>Desconectar</button>}
+        </div>
+        {cfg?.mercadoPago && (
+          <>
+            <h3 style={{ fontSize: 16 }}>Maquininha Point</h3>
+            <p className="muted small" style={{ margin: 0 }}>A maquininha precisa estar no <b>modo PDV</b> (no app Mercado Pago: Seu negócio › Maquininhas › Point › Modo de operação).</p>
+            <div className="row">
+              <button className="btn" onClick={() => run(async () => setDevices((await payApi<{ devices: { id: string; mode: string }[] }>('/api/point/devices')).devices))}>Procurar maquininhas</button>
+              {cfg.mpPointDeviceId && <span className="chip ok">Usando: {cfg.mpPointDeviceId}</span>}
+            </div>
+            {devices && !devices.length && <span className="chip warn">Nenhuma maquininha encontrada nesta conta</span>}
+            {devices?.map((d) => (
+              <div key={d.id} className="spread" style={{ background: 'var(--field)', borderRadius: 12, padding: 10 }}>
+                <span>{d.id} · {d.mode === 'PDV' ? 'Modo PDV' : `Modo ${d.mode} (mude para PDV)`}</span>
+                <button className="btn sm primary" onClick={() => run(async () => { setCfg(await saveSecrets({ mpPointDeviceId: d.id })); setMsg('Maquininha escolhida'); })}>Usar esta</button>
+              </div>
+            ))}
+          </>
+        )}
+        {msg && <span className="chip">{msg}</span>}
+      </div>
+
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <h2 style={{ fontSize: 18 }}>Chave PIX da loja (sem Mercado Pago)</h2>
+        <p className="muted small" style={{ margin: 0 }}>Gera o QR do PIX com o valor da venda na tela, até sem internet. O operador confirma quando o dinheiro cair. Se o Mercado Pago estiver conectado, ele é usado primeiro.</p>
+        <div className="row" style={{ alignItems: 'flex-start', gap: 20 }}>
+          <div className="grid" style={{ flex: '1 1 380px' }}>
+            <div className="field"><label htmlFor="pkt">Tipo de chave</label>
+              <select id="pkt" value={pix.type} onChange={(e) => setPix({ ...pix, type: e.target.value as PixKeyType })}><option value="cnpj">CNPJ</option><option value="cpf">CPF</option><option value="telefone">Telefone</option><option value="email">E-mail</option><option value="aleatoria">Chave aleatória</option></select>
+            </div>
+            <div className="field"><label htmlFor="pkk">Chave</label><input id="pkk" value={pix.key} onChange={(e) => setPix({ ...pix, key: e.target.value })} /></div>
+            <div className="field"><label htmlFor="pkn">Nome do recebedor</label><input id="pkn" placeholder={store.name} value={pix.name} onChange={(e) => setPix({ ...pix, name: e.target.value })} /></div>
+            <div className="field"><label htmlFor="pkc">Cidade</label><input id="pkc" value={pix.city} onChange={(e) => setPix({ ...pix, city: e.target.value })} /></div>
+          </div>
+          {qr && <div style={{ textAlign: 'center' }}><img src={qr} alt="QR de teste" style={{ width: 160 }} /><div className="muted small">Teste: R$ 1,00</div></div>}
+        </div>
+        <div className="row"><button className="btn primary" onClick={async () => { await setSetting('pixKey', pix.key ? { ...pix, name: pix.name || store.name, city: pix.city || 'BRASIL' } : null); setMsg('Chave PIX salva'); }}>Salvar chave PIX</button></div>
+      </div>
+
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <h2 style={{ fontSize: 18 }}>Outras maquininhas (Rede, Cielo, Stone, PagSeguro, GetNet)</h2>
+        <p className="muted small" style={{ margin: 0 }}>
+          Essas maquininhas só aceitam receber o valor do caixa por um <b>TEF</b> (programa homologado como PayGo ou SiTef, contratado à parte).
+          O Vision PDV está preparado para isso. Enquanto não houver TEF, o operador digita o valor na maquininha e marca a forma de pagamento no caixa.
+        </p>
+      </div>
+    </>
+  );
+}
+
+function WhatsApp() {
+  const [cfg, setCfg] = useState<PayConfig | null>(null);
+  const [f, setF] = useState<Record<string, string>>({});
+  const [msg, setMsg] = useState('');
+  const [preview, setPreview] = useState('');
+  useEffect(() => { loadPayConfig().then((c) => {
+    setCfg(c);
+    const w = c?.whatsapp;
+    if (w) setF({ provider: w.provider || '', to: (w.to || []).join(', '), hour: String(w.hour ?? 20), metaPhoneId: w.metaPhoneId || '', metaTemplate: w.metaTemplate || '', zapiInstance: w.zapiInstance || '', evolutionUrl: w.evolutionUrl || '', evolutionInstance: w.evolutionInstance || '' });
+  }); }, []);
+  const set = (k: string, v: string) => setF({ ...f, [k]: v });
+  const T = (k: string, label: string, secret = false, ph = '') => (
+    <div className="field"><label htmlFor={'wa-' + k}>{label}</label><input id={'wa-' + k} type={secret ? 'password' : 'text'} autoComplete="off" placeholder={ph} value={f[k] || ''} onChange={(e) => set(k, e.target.value)} /></div>
+  );
+  const run = async (fn: () => Promise<void>) => { setMsg(''); try { await fn(); } catch (e) { setMsg(e instanceof Error ? e.message : String(e)); } };
+  const save = () => run(async () => {
+    const patch: Record<string, unknown> = { provider: f.provider || undefined, to: (f.to || '').split(/[,;\n]/).map((x) => x.trim()).filter(Boolean), hour: Number(f.hour) || 20 };
+    for (const k of ['metaToken', 'metaPhoneId', 'metaTemplate', 'zapiInstance', 'zapiToken', 'zapiClientToken', 'evolutionUrl', 'evolutionKey', 'evolutionInstance']) if (f[k] !== undefined && f[k] !== '') patch[k] = f[k];
+    setCfg(await saveSecrets({ whatsapp: patch }));
+    setMsg('Salvo');
+  });
+  const loadPreview = () => run(async () => setPreview((await payApi<{ text: string }>('/api/whatsapp/summary')).text));
+
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="spread"><h2 style={{ fontSize: 18 }}>Resumo do dia no WhatsApp</h2>{cfg?.whatsapp?.configured ? <span className="chip ok">Envio automático ligado</span> : <span className="chip">Envio automático desligado</span>}</div>
+      <p className="muted small" style={{ margin: 0 }}>Todo dia, no horário escolhido, o dono recebe: vendas do dia, comparação com ontem, mais vendidos, produtos acabando, contas vencendo e validade. Para envio automático, escolha um serviço de WhatsApp. Sem serviço, use o botão "Abrir no WhatsApp".</p>
+      <div className="grid">
+        {T('to', 'Números que recebem (com DDD, separados por vírgula)', false, '11 99999-8888')}
+        <div className="field"><label htmlFor="wa-hour">Horário do resumo</label><select id="wa-hour" value={f.hour || '20'} onChange={(e) => set('hour', e.target.value)}>{Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}</select></div>
+        <div className="field"><label htmlFor="wa-prov">Serviço de envio</label>
+          <select id="wa-prov" value={f.provider || ''} onChange={(e) => set('provider', e.target.value)}>
+            <option value="">Nenhum (só manual)</option><option value="zapi">Z-API</option><option value="evolution">Evolution API</option><option value="meta">WhatsApp oficial (Meta)</option>
+          </select>
+        </div>
+      </div>
+      {f.provider === 'zapi' && <div className="grid">{T('zapiInstance', 'ID da instância')}{T('zapiToken', 'Token da instância', true)}{T('zapiClientToken', 'Client-Token (segurança da conta)', true)}</div>}
+      {f.provider === 'evolution' && <div className="grid">{T('evolutionUrl', 'Endereço do servidor Evolution', false, 'https://...')}{T('evolutionInstance', 'Nome da instância')}{T('evolutionKey', 'API Key', true)}</div>}
+      {f.provider === 'meta' && <div className="grid">{T('metaPhoneId', 'Phone Number ID')}{T('metaToken', 'Token de acesso', true)}{T('metaTemplate', 'Nome do modelo aprovado (opcional)')}</div>}
+      {f.provider === 'meta' && <p className="muted small" style={{ margin: 0 }}>No WhatsApp oficial, mensagens iniciadas pela empresa precisam de um modelo aprovado pela Meta. Crie um modelo com uma variável no corpo e informe o nome acima.</p>}
+      <div className="row">
+        <button className="btn primary" onClick={save}>Salvar</button>
+        {cfg?.whatsapp?.configured && <button className="btn" onClick={() => run(async () => { const r = await payApi<{ sent: number }>('/api/whatsapp/test', {}); setMsg(`Enviado para ${r.sent} ${r.sent === 1 ? 'número' : 'números'}`); })}>Enviar teste agora</button>}
+        <button className="btn" onClick={loadPreview}>Ver resumo de hoje</button>
+      </div>
+      {msg && <span className="chip">{msg}</span>}
+      {preview && (
+        <>
+          <pre style={{ margin: 0, padding: 14, background: 'var(--field)', borderRadius: 14, whiteSpace: 'pre-wrap', font: '14px/1.5 inherit' }}>{preview}</pre>
+          <a className="btn primary" style={{ alignSelf: 'flex-start' }} target="_blank" rel="noreferrer" href={`https://wa.me/?text=${encodeURIComponent(preview)}`}>Abrir no WhatsApp</a>
+        </>
+      )}
     </div>
   );
 }

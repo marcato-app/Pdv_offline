@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, save, remove, uid, stockOf, round2, type Product, type PendingProduct } from '../../lib/db';
 import { setStock, resolvePending } from '../../lib/pdv';
+import { lookupBarcode, photoToDataUrl, contribute } from '../../lib/catalog';
 import { money, parseNum, dec2, qtyFmt } from '../../lib/format';
 import { resizeImage } from '../../lib/theme';
 import { Photo } from '../../components/ui';
@@ -79,10 +80,31 @@ export function ProdutoForm() {
   const [tab, setTab] = useState<'geral' | 'precos' | 'estoque' | 'fiscal'>('geral');
   const [err, setErr] = useState('');
   const [pendingRow, setPendingRow] = useState<PendingProduct | null>(null);
+  const [lookup, setLookup] = useState<'' | 'buscando' | 'achou' | 'nada'>('');
+  const lastLooked = useRef('');
+  // Cadastro automático: ao informar o código de barras, preenche o que estiver vazio.
+  const autoFill = async (code: string) => {
+    const c = code.replace(/\D/g, '');
+    if (c.length < 8 || c === lastLooked.current) return;
+    lastLooked.current = c;
+    setLookup('buscando');
+    const it = await lookupBarcode(c);
+    if (!it) return setLookup('nada');
+    const photo = !p.photo && it.photo ? await photoToDataUrl(it.photo) : undefined;
+    setP((o) => {
+      const n = { ...o };
+      for (const k of ['description', 'brand', 'manufacturer', 'category', 'subcategory', 'basket', 'content', 'ncm'] as const) {
+        if (!n[k] && it[k]) n[k] = it[k] as string;
+      }
+      if (photo && !n.photo) n.photo = photo;
+      return n;
+    });
+    setLookup('achou');
+  };
   const cats = useLiveQuery(async () => {
     const all = await db.products.filter((x) => !x.deleted).toArray();
     const uniq = (k: keyof Product) => [...new Set(all.map((x) => x[k]).filter(Boolean) as string[])].sort();
-    return { category: uniq('category'), subcategory: uniq('subcategory'), basket: uniq('basket'), brand: uniq('brand'), manufacturer: uniq('manufacturer') };
+    return { category: uniq('category'), subcategory: uniq('subcategory'), basket: uniq('basket'), brand: uniq('brand'), manufacturer: uniq('manufacturer'), supplier: uniq('supplier') };
   }, []);
 
   useEffect(() => {
@@ -93,6 +115,7 @@ export function ProdutoForm() {
         setPendingRow(x);
         setP((o) => ({ ...o, barcode: x.barcode, description: x.description === 'PRODUTO NÃO CADASTRADO' ? '' : x.description }));
         setTxt((o) => ({ ...o, price: dec2(x.lastPrice) }));
+        autoFill(x.barcode);
       });
       return;
     }
@@ -127,6 +150,7 @@ export function ProdutoForm() {
       minStock: parseNum(num('minStock')),
     } as Product;
     await save<Product>('products', rec);
+    contribute([rec]);
     const newStock = parseNum(stockTxt);
     if (newStock !== stock) await setStock(rec.id, newStock, stock, isNew ? 'inicial' : 'ajuste');
     if (pendingRow) await resolvePending(pendingRow, rec);
@@ -169,10 +193,18 @@ export function ProdutoForm() {
           </div>
           <div className="grid" style={{ flex: '1 1 420px' }}>
             {tab === 'geral' && <>
-              {F("barcode", "Código de barras")}
+              <div className="field">
+                <label htmlFor="p-barcode">Código de barras</label>
+                <input id="p-barcode" value={p.barcode || ''} onChange={(e) => set('barcode', e.target.value)} onBlur={(e) => autoFill(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); autoFill((e.target as HTMLInputElement).value); } }} />
+                {lookup === 'buscando' && <span className="muted small">Procurando no banco de produtos…</span>}
+                {lookup === 'achou' && <span className="small" style={{ color: 'var(--ok)', fontWeight: 700 }}>Dados preenchidos automaticamente. Confira.</span>}
+                {lookup === 'nada' && <span className="muted small">Não encontrado no banco de produtos. Preencha à mão.</span>}
+              </div>
               <div style={{ gridColumn: '1 / -1' }}>{F("description", "Descritivo")}</div>
               {F("brand", "Marca", cats?.brand)}
               {F("manufacturer", "Fabricante", cats?.manufacturer)}
+              {F("supplier", "Fornecedor (de quem compra)", cats?.supplier)}
               {F("content", "Conteúdo (ex.: 1 kg)")}
               {F("category", "Categoria", cats?.category)}
               {F("subcategory", "Subcategoria", cats?.subcategory)}
