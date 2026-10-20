@@ -19,6 +19,7 @@ export interface Plan {
 export interface Platform {
   plans: Plan[];
   mpToken?: string; // Access Token de produção da conta Mercado Pago do Vision PDV
+  mpPublicKey?: string; // Public Key (para os campos de cartão dentro do app)
   supportWhatsApp?: string;
   company?: string; // nome/razão social que aparece nos termos
   companyDoc?: string; // CNPJ ou CPF
@@ -37,7 +38,7 @@ export interface Platform {
 }
 
 const SECRET_KEYS = ['mpToken', 'resendKey', 'zapiToken', 'zapiClientToken'] as const;
-const TEXT_KEYS = ['supportWhatsApp', 'company', 'companyDoc', 'companyEmail', 'mailFrom', 'zapiInstance', 'metaPixelId', 'googleTagId', 'googleAdsSignup', 'googleAdsPurchase'] as const;
+const TEXT_KEYS = ['mpPublicKey', 'supportWhatsApp', 'company', 'companyDoc', 'companyEmail', 'mailFrom', 'zapiInstance', 'metaPixelId', 'googleTagId', 'googleAdsSignup', 'googleAdsPurchase'] as const;
 
 export const DEFAULT_PLATFORM: Platform = {
   plans: [
@@ -59,7 +60,7 @@ async function putPlatform(env: Env, p: Platform) {
 export function publicPlatform(p: Platform) {
   return {
     plans: p.plans, supportWhatsApp: p.supportWhatsApp || null, company: p.company || null, companyDoc: p.companyDoc || null, companyEmail: p.companyEmail || null,
-    checkout: !!p.mpToken, recover: !!(p.resendKey || (p.zapiInstance && p.zapiToken)),
+    checkout: !!p.mpToken, mpPublicKey: p.mpToken ? p.mpPublicKey || null : null, recover: !!(p.resendKey || (p.zapiInstance && p.zapiToken)),
     metaPixelId: p.metaPixelId || null, googleTagId: p.googleTagId || null, googleAdsSignup: p.googleAdsSignup || null, googleAdsPurchase: p.googleAdsPurchase || null,
   };
 }
@@ -111,6 +112,28 @@ async function processAuthorizedPayment(env: Env, platform: Platform, id: string
   if (!payId || !preId) return;
   const pre = await syncPreapproval(env, platform, preId);
   await processPayment(env, platform, String(payId), pre?.ref);
+}
+
+const SITE_ORIGIN = 'https://visionpdv.marcatoapp.com.br';
+
+/** Motivo da recusa do cartão em português simples. */
+function cardError(detail: string) {
+  const d = detail.toLowerCase();
+  const m: [string, string][] = [
+    ['insufficient_amount', 'Cartão sem limite suficiente. Tente outro cartão ou o PIX.'],
+    ['security_code', 'Código de segurança (CVV) inválido. Confira e tente de novo.'],
+    ['bad_filled_date', 'Data de validade inválida. Confira e tente de novo.'],
+    ['bad_filled', 'Algum dado do cartão está errado. Confira e tente de novo.'],
+    ['call_for_authorize', 'O banco pediu autorização. Ligue para o banco do cartão e tente de novo.'],
+    ['card_disabled', 'Cartão bloqueado ou inativo. Fale com o banco ou use outro cartão.'],
+    ['duplicated', 'Pagamento repetido. Aguarde alguns minutos antes de tentar de novo.'],
+    ['high_risk', 'O pagamento foi recusado por segurança. Tente outro cartão ou o PIX.'],
+    ['max_attempts', 'Muitas tentativas. Use outro cartão ou o PIX.'],
+    ['blacklist', 'O pagamento foi recusado. Use outro cartão ou o PIX.'],
+  ];
+  for (const [k, v] of m) if (d.includes(k)) return v;
+  if (d.includes('rejected')) return 'O cartão foi recusado. Tente outro cartão ou o PIX.';
+  return `Não foi possível pagar com o cartão (${detail.slice(0, 120)}). Tente de novo ou use o PIX.`;
 }
 
 const months = (days: number) => Math.min(12, Math.max(1, Math.round(days / 30)));
@@ -172,7 +195,109 @@ export async function billingApi(req: Request, env: Env, url: URL, storeId: stri
   const back = (u?: string) => (/^https:\/\/visionpdv\.marcatoapp\.com\.br\//.test(u || '') ? u! : `${url.origin}/config?aba=assinatura`);
   const fail = (e: unknown) => json({ error: `Não foi possível abrir o pagamento (${e instanceof Error ? e.message : 'Mercado Pago'}). Tente de novo ou fale com o suporte.` }, 502);
 
-  // Pagamento avulso de um período.
+  const payerEmail = (e?: string) => {
+    const m = String(e || store.email || '').trim().toLowerCase();
+    return /^\S+@\S+\.\S+$/.test(m) ? m : null;
+  };
+  const getPlan = (id?: string) => platform.plans.find((x) => x.id === id);
+  const lic = async () => licenseOf(env, (await getStore(env, store.id)) as StoreRow);
+
+  // PIX dentro do app: gera o QR e a loja fica olhando até cair.
+  if (p === '/api/billing/pix' && req.method === 'POST') {
+    if (!platform.mpToken) return json({ error: 'Pagamento online ainda não disponível. Fale com o suporte.' }, 400);
+    const b = await req.json<{ plan?: string; email?: string }>();
+    const plan = getPlan(b.plan);
+    if (!plan) return json({ error: 'Plano inválido' }, 400);
+    const email = payerEmail(b.email);
+    if (!email) return json({ error: 'Informe um e-mail válido' }, 400);
+    try {
+      const pay = await mp(platform.mpToken, '/v1/payments', {
+        method: 'POST',
+        headers: { 'x-idempotency-key': crypto.randomUUID() },
+        body: JSON.stringify({
+          transaction_amount: plan.price,
+          description: `Vision PDV · plano ${plan.name}`,
+          payment_method_id: 'pix',
+          payer: { email },
+          external_reference: `${store.id}:${plan.id}:${crypto.randomUUID().slice(0, 8)}`,
+          notification_url: `${url.origin}/api/billing/webhook`,
+          date_of_expiration: new Date(Date.now() + 30 * 60_000).toISOString().replace('Z', '-00:00'),
+        }),
+      });
+      const td = ((pay.point_of_interaction as { transaction_data?: Record<string, string> } | undefined)?.transaction_data) || {};
+      if (!td.qr_code) return json({ error: 'O Mercado Pago não gerou o PIX. Confira se a conta tem uma chave PIX cadastrada.' }, 502);
+      return json({ id: String(pay.id), qr: td.qr_code, qrBase64: td.qr_code_base64 || null, amount: plan.price, expiresAt: Date.now() + 30 * 60_000 });
+    } catch (e) { return fail(e); }
+  }
+
+  // Situação de um pagamento (PIX esperando cair, cartão em análise).
+  if (p === '/api/billing/status' && req.method === 'GET') {
+    const id = url.searchParams.get('id') || '';
+    if (!platform.mpToken || !/^\d+$/.test(id)) return json({ error: 'Pagamento inválido' }, 400);
+    const r = await processPayment(env, platform, id).catch(() => ({ ok: false, status: 'erro' }));
+    return json({ status: r.status, license: r.ok ? await lic() : null });
+  }
+
+  // Cartão dentro do app. Os dados do cartão viram um "token" no aparelho (nunca passam por aqui).
+  if ((p === '/api/billing/card' || p === '/api/billing/card-subscribe') && req.method === 'POST') {
+    if (!platform.mpToken) return json({ error: 'Pagamento online ainda não disponível. Fale com o suporte.' }, 400);
+    const b = await req.json<{ plan?: string; token?: string; paymentMethodId?: string; issuerId?: string | number; installments?: number; email?: string; docType?: string; docNumber?: string }>();
+    const plan = getPlan(b.plan);
+    if (!plan || !b.token) return json({ error: 'Dados do pagamento incompletos' }, 400);
+    const email = payerEmail(b.email);
+    if (!email) return json({ error: 'Informe um e-mail válido' }, 400);
+    const identification = b.docNumber ? { type: b.docType || 'CPF', number: String(b.docNumber).replace(/\D/g, '') } : undefined;
+
+    if (p === '/api/billing/card-subscribe') {
+      try {
+        const pre = await mp(platform.mpToken, '/preapproval', {
+          method: 'POST',
+          body: JSON.stringify({
+            reason: `Vision PDV · plano ${plan.name}`,
+            external_reference: `${store.id}:${plan.id}:sub`,
+            payer_email: email,
+            card_token_id: b.token,
+            back_url: `${SITE_ORIGIN}/config?aba=assinatura`,
+            status: 'authorized',
+            auto_recurring: { frequency: months(plan.days), frequency_type: 'months', transaction_amount: plan.price, currency_id: 'BRL' },
+          }),
+        });
+        await env.DB.prepare('UPDATE stores SET sub_id = ?, sub_status = ?, sub_plan = ? WHERE id = ?').bind(String(pre.id), String(pre.status || 'authorized'), plan.id, store.id).run();
+        return json({ ok: true, preapprovalId: String(pre.id), status: String(pre.status || ''), license: await lic() });
+      } catch (e) {
+        return json({ error: cardError(e instanceof Error ? e.message : String(e)) }, 400);
+      }
+    }
+
+    try {
+      const pay = await mp(platform.mpToken, '/v1/payments', {
+        method: 'POST',
+        headers: { 'x-idempotency-key': crypto.randomUUID() },
+        body: JSON.stringify({
+          transaction_amount: plan.price,
+          token: b.token,
+          description: `Vision PDV · plano ${plan.name}`,
+          installments: Math.max(1, Math.min(12, Number(b.installments) || 1)),
+          payment_method_id: b.paymentMethodId,
+          issuer_id: b.issuerId ? Number(b.issuerId) : undefined,
+          payer: { email, identification },
+          external_reference: `${store.id}:${plan.id}:${crypto.randomUUID().slice(0, 8)}`,
+          notification_url: `${url.origin}/api/billing/webhook`,
+          statement_descriptor: 'VISIONPDV',
+        }),
+      });
+      if (pay.status === 'approved') {
+        await processPayment(env, platform, String(pay.id));
+        return json({ ok: true, status: 'approved', id: String(pay.id), license: await lic() });
+      }
+      if (pay.status === 'in_process' || pay.status === 'pending') return json({ ok: true, status: 'pending', id: String(pay.id) });
+      return json({ error: cardError(String(pay.status_detail || pay.status)) }, 400);
+    } catch (e) {
+      return json({ error: cardError(e instanceof Error ? e.message : String(e)) }, 400);
+    }
+  }
+
+  // Pagamento avulso de um período (pelo site do Mercado Pago).
   if (p === '/api/billing/checkout' && req.method === 'POST') {
     if (!platform.mpToken) return json({ error: 'Pagamento online ainda não disponível. Fale com o suporte.' }, 400);
     const b = await req.json<{ plan?: string; back?: string }>();

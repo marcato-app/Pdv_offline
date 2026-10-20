@@ -367,3 +367,6 @@ table.t tr.click:hover td { background: #faf9fd; }
 .steps-list li.done a { color: var(--muted); text-decoration: line-through; }
 .progress { height: 8px; border-radius: 99px; background: var(--field); overflow: hidden; }
 .progress > span { display: block; height: 100%; background: var(--primary); border-radius: 99px; }
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+#mp-card-brick { min-height: 120px; }

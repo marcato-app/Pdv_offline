@@ -207,10 +207,10 @@ function CatalogUpload({ master }: { master: string }) {
 }
 
 interface PlanRow { id: string; name: string; price: number; days: number; highlight?: string }
-type TextKey = 'supportWhatsApp' | 'company' | 'companyDoc' | 'companyEmail' | 'mailFrom' | 'zapiInstance' | 'metaPixelId' | 'googleTagId' | 'googleAdsSignup' | 'googleAdsPurchase';
+type TextKey = 'mpPublicKey' | 'supportWhatsApp' | 'company' | 'companyDoc' | 'companyEmail' | 'mailFrom' | 'zapiInstance' | 'metaPixelId' | 'googleTagId' | 'googleAdsSignup' | 'googleAdsPurchase';
 type SecretKey = 'mpToken' | 'resendKey' | 'zapiToken' | 'zapiClientToken';
 type PlatformAdmin = { plans: PlanRow[]; checkout: boolean } & Record<TextKey | SecretKey, string | null>;
-const TEXT_FIELDS: TextKey[] = ['supportWhatsApp', 'company', 'companyDoc', 'companyEmail', 'mailFrom', 'zapiInstance', 'metaPixelId', 'googleTagId', 'googleAdsSignup', 'googleAdsPurchase'];
+const TEXT_FIELDS: TextKey[] = ['mpPublicKey', 'supportWhatsApp', 'company', 'companyDoc', 'companyEmail', 'mailFrom', 'zapiInstance', 'metaPixelId', 'googleTagId', 'googleAdsSignup', 'googleAdsPurchase'];
 
 /** Planos, preço, conta Mercado Pago que recebe as assinaturas, WhatsApp do suporte e dados da empresa (vão nos termos). */
 function PlatformCfg({ master }: { master: string }) {
@@ -269,7 +269,10 @@ function PlatformCfg({ master }: { master: string }) {
 
       <h2 style={{ fontSize: 18 }}>Recebimento (Mercado Pago)</h2>
       <p className="muted small" style={{ margin: 0 }}>Cole o Access Token de produção da SUA conta Mercado Pago (Seu negócio → Configurações → Credenciais). As assinaturas caem nela e as lojas são ativadas sozinhas. Situação: <b>{p.checkout ? 'ligado' : 'desligado'}</b>.</p>
-      {secret('pmt', 'Access Token', 'mpToken', 'APP_USR-…')}
+      <div className="grid">
+        {secret('pmt', 'Access Token', 'mpToken', 'APP_USR-…')}
+        {txt('ppk', 'Public Key (cartão dentro do app)', 'mpPublicKey', 'APP_USR-…')}
+      </div>
       <p className="muted small" style={{ margin: 0 }}>No Mercado Pago, em Suas integrações → Webhooks, cadastre a URL <b>https://visionpdv.marcatoapp.com.br/api/billing/webhook</b> com os eventos Pagamentos, Planos e assinaturas.</p>
 
       <h2 style={{ fontSize: 18 }}>E-mail e WhatsApp da plataforma</h2>

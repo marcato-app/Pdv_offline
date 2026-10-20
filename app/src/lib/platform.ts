@@ -2,7 +2,7 @@
 import { api, IS_APP } from './store';
 
 export interface Plan { id: string; name: string; price: number; days: number; highlight?: string }
-export interface PlatformInfo { plans: Plan[]; supportWhatsApp: string | null; company: string | null; companyDoc: string | null; companyEmail: string | null; checkout: boolean; recover?: boolean; metaPixelId?: string | null; googleTagId?: string | null; googleAdsSignup?: string | null; googleAdsPurchase?: string | null }
+export interface PlatformInfo { plans: Plan[]; supportWhatsApp: string | null; company: string | null; companyDoc: string | null; companyEmail: string | null; checkout: boolean; mpPublicKey?: string | null; recover?: boolean; metaPixelId?: string | null; googleTagId?: string | null; googleAdsSignup?: string | null; googleAdsPurchase?: string | null }
 
 const FALLBACK: PlatformInfo = {
   plans: [

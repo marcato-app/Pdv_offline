@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useLicense, activateKey, startCheckout, startSubscription, cancelSubscription, confirmPayment, STATUS_LABEL, type License } from '../lib/license';
-import { getPlatform, IS_NATIVE, whatsLink, type PlatformInfo } from '../lib/platform';
+import { useLicense, activateKey, cancelSubscription, confirmPayment, STATUS_LABEL, type License } from '../lib/license';
+import { getPlatform, whatsLink, type PlatformInfo, type Plan } from '../lib/platform';
+import { PlanPayModal } from './PlanPay';
 import { money } from '../lib/format';
 import { trackPurchase } from '../lib/tracking';
 import { dateOnly } from '../lib/format';
@@ -32,11 +33,11 @@ export function ActivateBox({ lic }: { lic: License | null }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [plat, setPlat] = useState<PlatformInfo | null>(null);
-  const [opened, setOpened] = useState(false);
   useEffect(() => { getPlatform().then(setPlat); }, []);
 
   const { user } = useApp();
-  const [payer, setPayer] = useState(user?.email || '');
+  const payer = user?.email || '';
+  const [paying, setPaying] = useState<Plan | null>(null);
   const sub = lic?.subscription;
   const planName = (id?: string | null) => plat?.plans.find((x) => x.id === id)?.name || id || '';
 
@@ -60,18 +61,6 @@ export function ActivateBox({ lic }: { lic: License | null }) {
     }).catch((e) => setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }));
   }, []);
 
-  const go = async (fn: () => Promise<string>) => {
-    setBusy(true);
-    setMsg(null);
-    try {
-      const url = await fn();
-      if (IS_NATIVE) { window.open(url, '_blank'); setOpened(true); setBusy(false); }
-      else location.assign(url);
-    } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
-      setBusy(false);
-    }
-  };
   const check = async () => {
     setBusy(true);
     try {
@@ -118,17 +107,13 @@ export function ActivateBox({ lic }: { lic: License | null }) {
                 <span className="muted small">Plano {pl.name}{pl.highlight ? ` · ${pl.highlight}` : ''}</span>
                 <b>{money(pl.price)}</b>
                 <span className="muted small">{pl.days} dias de uso</span>
-                <button className={'btn ' + (pl.highlight ? 'primary' : 'secondary')} disabled={busy} onClick={() => go(() => startSubscription(pl.id, payer))}>Cartão: renova sozinho</button>
-                <button className="btn sm ghost" disabled={busy} onClick={() => go(() => startCheckout(pl.id))}>Pagar só uma vez (PIX ou boleto)</button>
+                <button className={'btn ' + (pl.highlight ? 'primary' : 'secondary')} disabled={busy} onClick={() => setPaying(pl)}>Assinar {pl.name.toLowerCase()}</button>
               </div>
             ))}
           </div>
-          <div className="field" style={{ maxWidth: 420 }}>
-            <label htmlFor="payer">E-mail da sua conta Mercado Pago (para o cartão)</label>
-            <input id="payer" className="input" type="email" autoComplete="email" value={payer} onChange={(e) => setPayer(e.target.value)} />
-          </div>
-          <span className="muted small">No cartão, a cobrança se repete sozinha e você pode cancelar quando quiser. No PIX ou boleto, você paga um período por vez. Em todos, a ativação é automática.</span>
-          {opened && <button className="btn" disabled={busy} onClick={check}>Já paguei: verificar agora</button>}
+          <span className="muted small">Pague com PIX (QR na tela) ou cartão, sem sair do sistema. No cartão, a cobrança pode se repetir sozinha. A ativação é automática.</span>
+          {paying && <PlanPayModal plan={paying} email={payer} onClose={() => setPaying(null)} />}
+          <button className="btn sm ghost" style={{ alignSelf: 'flex-start' }} disabled={busy} onClick={check}>Já paguei: verificar agora</button>
         </>
       )}
       {!plat?.checkout && lic?.checkoutUrl && (
