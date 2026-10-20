@@ -207,12 +207,17 @@ function CatalogUpload({ master }: { master: string }) {
 }
 
 interface PlanRow { id: string; name: string; price: number; days: number; highlight?: string }
-interface PlatformAdmin { plans: PlanRow[]; mpToken: string | null; supportWhatsApp: string | null; company: string | null; companyDoc: string | null; companyEmail: string | null; checkout: boolean }
+type TextKey = 'supportWhatsApp' | 'company' | 'companyDoc' | 'companyEmail' | 'mailFrom' | 'zapiInstance' | 'metaPixelId' | 'googleTagId' | 'googleAdsSignup' | 'googleAdsPurchase';
+type SecretKey = 'mpToken' | 'resendKey' | 'zapiToken' | 'zapiClientToken';
+type PlatformAdmin = { plans: PlanRow[]; checkout: boolean } & Record<TextKey | SecretKey, string | null>;
+const TEXT_FIELDS: TextKey[] = ['supportWhatsApp', 'company', 'companyDoc', 'companyEmail', 'mailFrom', 'zapiInstance', 'metaPixelId', 'googleTagId', 'googleAdsSignup', 'googleAdsPurchase'];
 
 /** Planos, preço, conta Mercado Pago que recebe as assinaturas, WhatsApp do suporte e dados da empresa (vão nos termos). */
 function PlatformCfg({ master }: { master: string }) {
   const [p, setP] = useState<PlatformAdmin | null>(null);
-  const [token, setToken] = useState('');
+  const [sec, setSec] = useState<Partial<Record<SecretKey, string>>>({});
+  const [testTo, setTestTo] = useState({ email: '', phone: '' });
+  const [testMsg, setTestMsg] = useState('');
   const [msg, setMsg] = useState('');
   useEffect(() => { api<PlatformAdmin>('/api/admin/platform', { master }).then(setP).catch((e) => setMsg(String(e.message || e))); }, []);
   if (!p) return <div className="card">{msg || 'Carregando…'}</div>;
@@ -220,14 +225,24 @@ function PlatformCfg({ master }: { master: string }) {
   const save = async () => {
     setMsg('');
     try {
-      const body: Record<string, unknown> = { plans: p.plans, supportWhatsApp: p.supportWhatsApp || '', company: p.company || '', companyDoc: p.companyDoc || '', companyEmail: p.companyEmail || '' };
-      if (token.trim()) body.mpToken = token.trim();
+      const body: Record<string, unknown> = { plans: p.plans, ...sec };
+      for (const k of TEXT_FIELDS) body[k] = p[k] || '';
       const r = await api<PlatformAdmin>('/api/admin/platform', { method: 'PUT', master, body: JSON.stringify(body) });
-      setP(r); setToken(''); setMsg('Salvo!');
+      setP(r); setSec({}); setMsg('Salvo!');
       localStorage.removeItem('vision-platform');
     } catch (e) { setMsg(e instanceof Error ? e.message : String(e)); }
   };
-  const txt = (id: string, label: string, k: 'supportWhatsApp' | 'company' | 'companyDoc' | 'companyEmail', ph = '') => (
+  const secret = (id: string, label: string, k: SecretKey, ph = '') => (
+    <div className="field"><label htmlFor={id}>{label}{p[k] ? ` (salvo: ${p[k]})` : ''}</label><input id={id} className="input" type="password" autoComplete="off" placeholder={p[k] ? 'deixe vazio para manter' : ph} value={sec[k] || ''} onChange={(e) => setSec({ ...sec, [k]: e.target.value })} /></div>
+  );
+  const test = async () => {
+    setTestMsg('Enviando…');
+    try {
+      const r = await api<Record<string, string>>('/api/admin/notify-test', { method: 'POST', master, body: JSON.stringify(testTo) });
+      setTestMsg(Object.entries(r).map(([k, v]) => `${k === 'email' ? 'E-mail' : 'WhatsApp'}: ${v}`).join(' · ') || 'Informe um e-mail ou número');
+    } catch (e) { setTestMsg(e instanceof Error ? e.message : String(e)); }
+  };
+  const txt = (id: string, label: string, k: TextKey, ph = '') => (
     <div className="field"><label htmlFor={id}>{label}</label><input id={id} className="input" placeholder={ph} value={p[k] || ''} onChange={(e) => setP({ ...p, [k]: e.target.value })} /></div>
   );
   return (
@@ -253,8 +268,35 @@ function PlatformCfg({ master }: { master: string }) {
       <button className="btn sm" style={{ alignSelf: 'flex-start' }} onClick={() => setP({ ...p, plans: [...p.plans, { id: 'novo', name: 'Novo', price: 99, days: 30 }] })}>+ Plano</button>
 
       <h2 style={{ fontSize: 18 }}>Recebimento (Mercado Pago)</h2>
-      <p className="muted small" style={{ margin: 0 }}>Cole o Access Token de produção da SUA conta Mercado Pago (Seu negócio → Configurações → Credenciais). As assinaturas caem nela e as lojas são ativadas sozinhas. Situação: <b>{p.checkout ? `ligado (${p.mpToken})` : 'desligado'}</b>.</p>
-      <div className="field"><label htmlFor="pmt">Access Token</label><input id="pmt" className="input" type="password" placeholder={p.mpToken ? 'deixe vazio para manter' : 'APP_USR-…'} value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" /></div>
+      <p className="muted small" style={{ margin: 0 }}>Cole o Access Token de produção da SUA conta Mercado Pago (Seu negócio → Configurações → Credenciais). As assinaturas caem nela e as lojas são ativadas sozinhas. Situação: <b>{p.checkout ? 'ligado' : 'desligado'}</b>.</p>
+      {secret('pmt', 'Access Token', 'mpToken', 'APP_USR-…')}
+      <p className="muted small" style={{ margin: 0 }}>No Mercado Pago, em Suas integrações → Webhooks, cadastre a URL <b>https://visionpdv.marcatoapp.com.br/api/billing/webhook</b> com os eventos Pagamentos, Planos e assinaturas.</p>
+
+      <h2 style={{ fontSize: 18 }}>E-mail e WhatsApp da plataforma</h2>
+      <p className="muted small" style={{ margin: 0 }}>Usados no "Esqueci minha senha" e nos avisos de vencimento (3 dias antes, no dia e 1 dia depois, às 9h). E-mail pelo <b>Resend</b> (resend.com, grátis até 3.000/mês: verifique o domínio marcatoapp.com.br lá). WhatsApp pela <b>Z-API</b> (z-api.io).</p>
+      <div className="grid">
+        {secret('prk', 'Chave do Resend', 'resendKey', 're_…')}
+        {txt('pmf', 'Remetente', 'mailFrom', 'Vision PDV <nao-responda@marcatoapp.com.br>')}
+        {txt('pzi', 'Z-API: ID da instância', 'zapiInstance')}
+        {secret('pzt', 'Z-API: token da instância', 'zapiToken')}
+        {secret('pzc', 'Z-API: Client-Token (segurança)', 'zapiClientToken')}
+      </div>
+      <div className="row">
+        <input className="input" style={{ flex: '1 1 200px' }} placeholder="e-mail para teste" aria-label="E-mail para teste" value={testTo.email} onChange={(e) => setTestTo({ ...testTo, email: e.target.value })} />
+        <input className="input" style={{ flex: '1 1 160px' }} placeholder="WhatsApp para teste" aria-label="WhatsApp para teste" value={testTo.phone} onChange={(e) => setTestTo({ ...testTo, phone: e.target.value })} />
+        <button className="btn" onClick={test}>Enviar teste</button>
+        {testMsg && <span className="chip">{testMsg}</span>}
+      </div>
+      <span className="muted small">Salve antes de testar.</span>
+
+      <h2 style={{ fontSize: 18 }}>Anúncios (medir cadastros e vendas)</h2>
+      <p className="muted small" style={{ margin: 0 }}>Os pixels carregam só no site (página de vendas e cadastro), nunca dentro do caixa. Eventos enviados: visita, cadastro (CompleteRegistration / sign_up) e assinatura paga (Purchase / purchase).</p>
+      <div className="grid">
+        {txt('pfb', 'Pixel da Meta (Facebook/Instagram)', 'metaPixelId', '123456789012345')}
+        {txt('pga', 'Google: ID da tag', 'googleTagId', 'G-XXXX ou AW-XXXX')}
+        {txt('pgs', 'Google Ads: conversão de cadastro', 'googleAdsSignup', 'AW-XXXX/abcDEF')}
+        {txt('pgp', 'Google Ads: conversão de assinatura', 'googleAdsPurchase', 'AW-XXXX/ghiJKL')}
+      </div>
 
       <h2 style={{ fontSize: 18 }}>Suporte e empresa</h2>
       <div className="grid">

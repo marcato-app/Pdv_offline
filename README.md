@@ -111,3 +111,13 @@ cd desktop && npm install && npm start        # app de Windows (depois de "npm r
 - O estoque é calculado pela soma dos movimentos (venda, entrada, ajuste). Assim dois caixas vendendo
   o mesmo produto ao mesmo tempo nunca se sobrescrevem.
 - Se o mesmo cadastro for editado em dois lugares, vale a alteração mais recente.
+
+## Senha, avisos, anúncios e cobrança automática
+
+Tudo é configurado em `/dono` → **Planos e pagamento**:
+
+- **Esqueci minha senha** (`/esqueci` → link `/redefinir?t=…`, vale 1 hora). Envia por e-mail (Resend) e, para o administrador, também no WhatsApp da loja (Z-API).
+- **Avisos de vencimento** às 9h (Brasília): 3 dias antes, no dia e 1 dia depois. Lojas com cobrança automática ativa só recebem o aviso de vencido.
+- **Pixels**: Meta Pixel e Google (tag G-/AW- e rótulos de conversão). Carregam só no site. Eventos: visita, cadastro, assinatura paga.
+- **Cobrança automática** (assinatura recorrente do Mercado Pago, `/preapproval`). Webhook: `https://visionpdv.marcatoapp.com.br/api/billing/webhook` com os eventos Pagamentos e Planos e assinaturas.
+- Banco: rode `worker/migrate-3.sql` em bancos criados antes desta versão.

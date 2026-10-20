@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getPlatform, whatsLink, type PlatformInfo } from '../lib/platform';
 import { money } from '../lib/format';
+import { initTracking } from '../lib/tracking';
 
 // Página de vendas (para quem chega pelo anúncio). Botões levam para /cadastro e /entrar.
 
@@ -26,7 +27,7 @@ const FAQ: [string, string][] = [
 
 export function Landing() {
   const [p, setP] = useState<PlatformInfo | null>(null);
-  useEffect(() => { getPlatform().then(setP); }, []);
+  useEffect(() => { getPlatform().then(setP); initTracking(); }, []);
   const plans = p?.plans || [];
   const monthly = plans.find((x) => x.days <= 31);
   const go = (path: string) => () => location.assign(path);

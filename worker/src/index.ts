@@ -7,6 +7,9 @@ import { catalogApi } from './catalog';
 import { paymentsApi, secretsApi } from './payments';
 import { whatsappApi, sendDailySummaries } from './whatsapp';
 import { billingApi } from './billing';
+import { passwordApi } from './password';
+import { sendExpiryNotices, sendMail, sendPlatformWa, canMail, canWa } from './notify';
+import { getPlatform } from './billing';
 
 export interface Env {
   DB: D1Database;
@@ -53,7 +56,7 @@ async function readToken(env: Env, req: Request): Promise<string | null> {
   return safeEqual(sig, await hmac(env, `${storeId}.${exp}`)) ? storeId : null;
 }
 
-export interface StoreRow { id: string; name: string; email: string | null; phone: string | null; created_at: number; trial_ends: number; paid_until: number; plan: string | null; blocked: number }
+export interface StoreRow { id: string; name: string; email: string | null; phone: string | null; created_at: number; trial_ends: number; paid_until: number; plan: string | null; blocked: number; sub_id?: string | null; sub_status?: string | null; sub_plan?: string | null }
 
 export async function getStore(env: Env, slug: string) {
   return env.DB.prepare('SELECT * FROM stores WHERE id = ?').bind(slug).first<StoreRow>();
@@ -66,7 +69,7 @@ export function licenseOf(env: Env, s: StoreRow) {
   const validUntil = Math.max(s.trial_ends, s.paid_until);
   const now = Date.now();
   const status = s.blocked ? 'blocked' : now > validUntil ? 'expired' : s.paid_until > now ? 'active' : 'trial';
-  return { status, trialEnds: s.trial_ends, paidUntil: s.paid_until, validUntil, daysLeft: Math.max(0, Math.ceil((validUntil - now) / DAY)), checkoutUrl: null };
+  return { status, trialEnds: s.trial_ends, paidUntil: s.paid_until, validUntil, daysLeft: Math.max(0, Math.ceil((validUntil - now) / DAY)), checkoutUrl: null, subscription: s.sub_status && s.sub_status !== 'cancelled' ? { status: s.sub_status, plan: s.sub_plan || null } : null };
 }
 
 /** Soma dias à licença, contando a partir de hoje ou do fim da licença atual (o que for maior). */
@@ -94,7 +97,7 @@ interface PushRecord {
   deleted: 0 | 1;
 }
 
-function upsertStmt(env: Env) {
+export function upsertStmt(env: Env) {
   return env.DB.prepare(
     `INSERT INTO records (store_id, tbl, id, data, updated_at, deleted, seq)
      VALUES (?1, ?2, ?3, ?4, ?5, ?6, (SELECT COALESCE(MAX(seq), 0) + 1 FROM records WHERE store_id = ?1))
@@ -132,7 +135,7 @@ async function pull(env: Env, storeId: string, url: URL) {
   });
 }
 
-interface UserData { login: string; salt: string; passHash: string; active: number; deleted?: number; name: string; role: string; id: string }
+export interface UserData { login: string; salt: string; passHash: string; active: number; deleted?: number; name: string; role: string; id: string }
 
 async function findUser(env: Env, storeId: string, login: string): Promise<UserData | null> {
   const row = await env.DB.prepare(
@@ -144,7 +147,7 @@ async function findUser(env: Env, storeId: string, login: string): Promise<UserD
 }
 
 /** Procura o usuário pelo e-mail em todas as lojas (login só com e-mail e senha). */
-async function findUserByEmail(env: Env, email: string): Promise<(UserData & { storeId: string }) | null> {
+export async function findUserByEmail(env: Env, email: string): Promise<(UserData & { storeId: string }) | null> {
   if (!email.includes('@')) return null;
   const { results } = await env.DB.prepare(
     `SELECT store_id, data FROM records WHERE tbl = 'users' AND deleted = 0
@@ -181,6 +184,12 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
   // Planos, aviso do Mercado Pago e configurações do dono (não dependem do acesso da loja).
   if (p === '/api/plans' || p === '/api/billing/webhook' || p === '/api/admin/platform') {
     const r = await billingApi(req, env, url, null, isMaster(env, req));
+    if (r) return r;
+  }
+
+  // Esqueci minha senha.
+  if (p.startsWith('/api/password/')) {
+    const r = await passwordApi(req, env, url);
     if (r) return r;
   }
 
@@ -273,6 +282,19 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
       await env.DB.prepare('UPDATE stores SET blocked = ? WHERE id = ?').bind(b.blocked ? 1 : 0, (b.slug || '').toLowerCase()).run();
       return json({ ok: true });
     }
+    // Testar o envio de e-mail e WhatsApp da plataforma.
+    if (p === '/api/admin/notify-test' && req.method === 'POST') {
+      const b = await req.json<{ email?: string; phone?: string }>();
+      const plat = await getPlatform(env);
+      const out: Record<string, string> = {};
+      if (b.email) {
+        try { if (!canMail(plat)) throw new Error('chave do Resend não informada'); await sendMail(plat, b.email, 'Teste do Vision PDV', 'Tudo certo!', ['Este é um e-mail de teste do Vision PDV. Os e-mails de senha e de vencimento vão chegar assim.']); out.email = 'enviado'; } catch (e) { out.email = 'erro: ' + (e instanceof Error ? e.message : String(e)); }
+      }
+      if (b.phone) {
+        try { if (!canWa(plat)) throw new Error('Z-API não informada'); await sendPlatformWa(plat, b.phone, '*Vision PDV*\n\nTeste de WhatsApp: tudo certo!'); out.whatsapp = 'enviado'; } catch (e) { out.whatsapp = 'erro: ' + (e instanceof Error ? e.message : String(e)); }
+      }
+      return json(out);
+    }
     const cat = await catalogApi(req, env, url, null, true);
     if (cat) return cat;
     return json({ error: 'Não encontrado' }, 404);
@@ -313,9 +335,10 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
 }
 
 export default {
-  // De hora em hora: resumo do dia no WhatsApp das lojas.
+  // De hora em hora: resumo do dia no WhatsApp das lojas e avisos de vencimento (9h).
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
     ctx.waitUntil(sendDailySummaries(env));
+    ctx.waitUntil(sendExpiryNotices(env));
   },
 
   async fetch(req: Request, env: Env): Promise<Response> {

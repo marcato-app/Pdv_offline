@@ -98,7 +98,7 @@ const digits = (s: string) => {
   return d.length <= 11 ? '55' + d : d;
 };
 
-async function send(w: NonNullable<Secrets['whatsapp']>, to: string, text: string) {
+export async function send(w: NonNullable<Secrets['whatsapp']>, to: string, text: string) {
   const phone = digits(to);
   let r: Response;
   if (w.provider === 'meta') {

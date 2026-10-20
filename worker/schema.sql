@@ -27,7 +27,10 @@ CREATE TABLE IF NOT EXISTS stores (
   paid_until  INTEGER NOT NULL DEFAULT 0,
   plan        TEXT,
   blocked     INTEGER NOT NULL DEFAULT 0,
-  terms_at    INTEGER -- quando aceitou os termos de uso
+  terms_at    INTEGER, -- quando aceitou os termos de uso
+  sub_id      TEXT,    -- assinatura recorrente no Mercado Pago (preapproval)
+  sub_status  TEXT,    -- pending | authorized | paused | cancelled
+  sub_plan    TEXT
 );
 CREATE INDEX IF NOT EXISTS stores_ip ON stores (created_ip, created_at);
 
@@ -90,4 +93,25 @@ CREATE INDEX IF NOT EXISTS records_user_email ON records (lower(json_extract(dat
 CREATE TABLE IF NOT EXISTS platform_config (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
+);
+
+-- Recuperação de senha (o link guarda só o hash do código).
+CREATE TABLE IF NOT EXISTS password_resets (
+  token_hash TEXT PRIMARY KEY,
+  store_id   TEXT NOT NULL,
+  user_id    TEXT NOT NULL,
+  email      TEXT NOT NULL,
+  expires    INTEGER NOT NULL,
+  used       INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS password_resets_email ON password_resets (email, created_at);
+
+-- Avisos de vencimento já enviados.
+CREATE TABLE IF NOT EXISTS notice_log (
+  store_id TEXT NOT NULL,
+  kind     TEXT NOT NULL,
+  ref      INTEGER NOT NULL,
+  sent_at  INTEGER NOT NULL,
+  PRIMARY KEY (store_id, kind, ref)
 );

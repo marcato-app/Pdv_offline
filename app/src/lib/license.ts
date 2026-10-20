@@ -9,6 +9,7 @@ export interface License {
   validUntil: number;
   daysLeft: number;
   checkoutUrl: string | null;
+  subscription?: { status: string; plan: string | null } | null; // cobrança automática no cartão
   checkedAt?: number;
 }
 
@@ -67,11 +68,28 @@ export async function startCheckout(plan: string) {
   return r.url;
 }
 
+/** Cobrança automática no cartão: renova sozinha a cada período. */
+export async function startSubscription(plan: string, email: string) {
+  const token = await getDevice<string | null>('token', null);
+  if (!token) throw new Error('Entre na loja com internet antes de assinar');
+  const back = `${location.origin}/config?aba=assinatura`;
+  const r = await api<{ url: string }>('/api/billing/subscribe', { method: 'POST', token, body: JSON.stringify({ plan, back, email }) });
+  return r.url;
+}
+
+export async function cancelSubscription() {
+  const token = await getDevice<string | null>('token', null);
+  if (!token) throw new Error('Precisa de internet');
+  const l = await api<License>('/api/billing/cancel', { method: 'POST', token });
+  await saveLicense(l);
+  return l;
+}
+
 /** Na volta do Mercado Pago (ou no botão "Já paguei"): confere o pagamento e atualiza a licença. */
-export async function confirmPayment(paymentId?: string) {
+export async function confirmPayment(paymentId?: string, preapprovalId?: string) {
   const token = await getDevice<string | null>('token', null);
   if (!token) return null;
-  const r = await api<License & { ok?: boolean; status?: string }>('/api/billing/confirm', { method: 'POST', token, body: JSON.stringify({ paymentId }) });
+  const r = await api<License & { ok?: boolean; status?: string; amount?: number }>('/api/billing/confirm', { method: 'POST', token, body: JSON.stringify({ paymentId, preapprovalId }) });
   if (r.ok === false) return r;
   await saveLicense(r);
   return r;

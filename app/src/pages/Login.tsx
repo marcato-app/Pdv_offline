@@ -1,4 +1,4 @@
-import { useContext, useState, type FormEvent, type ReactNode } from 'react';
+import { useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Dexie from 'dexie';
 import { useApp, AppCtxRef } from '../lib/app-context';
@@ -7,9 +7,10 @@ import { db, DB_NAME, uid } from '../lib/db';
 import { hashPassword } from '../lib/auth';
 import { DEFAULT_THEME } from '../lib/theme';
 import { Logo, SyncBadge } from '../components/ui';
+import { trackSignup, initTracking } from '../lib/tracking';
 import { STORE_SLUG, api, openStore, leaveStore, slugify, storeLink, goHome } from '../lib/store';
 
-function Brand({ title, subtitle, logo = true }: { title: string; subtitle?: string; logo?: boolean }) {
+export function Brand({ title, subtitle, logo = true }: { title: string; subtitle?: string; logo?: boolean }) {
   return (
     <div className="login-brand">
       <div className="row" style={{ gap: 16 }}>
@@ -30,7 +31,7 @@ function Brand({ title, subtitle, logo = true }: { title: string; subtitle?: str
   );
 }
 
-function PasswordField({ id, label, value, onChange, autoComplete }: { id: string; label: string; value: string; onChange: (v: string) => void; autoComplete: string }) {
+export function PasswordField({ id, label, value, onChange, autoComplete }: { id: string; label: string; value: string; onChange: (v: string) => void; autoComplete: string }) {
   const [show, setShow] = useState(false);
   return (
     <div className="field">
@@ -46,7 +47,7 @@ function PasswordField({ id, label, value, onChange, autoComplete }: { id: strin
   );
 }
 
-function TextField({ id, label, value, onChange, autoFocus, autoComplete, placeholder, hint }: {
+export function TextField({ id, label, value, onChange, autoFocus, autoComplete, placeholder, hint }: {
   id: string; label: string; value: string; onChange: (v: string) => void; autoFocus?: boolean; autoComplete?: string; placeholder?: string; hint?: ReactNode;
 }) {
   return (
@@ -108,6 +109,7 @@ export function Login() {
           </div>
           <TextField id="lu" label="E-mail ou usuário" value={login} onChange={setLogin} autoFocus autoComplete="username" />
           <PasswordField id="lp" label="Senha" value={pass} onChange={setPass} autoComplete="current-password" />
+          <a href={'/esqueci' + (login.includes('@') ? `?email=${encodeURIComponent(login.trim())}` : '')} className="small" style={{ alignSelf: 'flex-start', marginTop: -8, fontWeight: 600 }}>Esqueci minha senha</a>
           {err && <div className="error">{err}</div>}
           <button className="btn primary big" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'}</button>
           <div className="row" style={{ justifyContent: 'space-between' }}><SyncBadge /></div>
@@ -166,6 +168,7 @@ function EmailLoginScreen({ subtitle, onDone, onCreate }: { subtitle?: string; o
           <h2 style={{ fontSize: 26, fontWeight: 700 }}>Entrar</h2>
           <TextField id="em1" label="E-mail" value={email} onChange={setEmail} autoFocus autoComplete="email" placeholder="seu@email.com" />
           <PasswordField id="em2" label="Senha" value={pass} onChange={setPass} autoComplete="current-password" />
+          <a href={'/esqueci' + (email ? `?email=${encodeURIComponent(email.trim())}` : '')} className="small" style={{ alignSelf: 'flex-start', marginTop: -8, fontWeight: 600 }}>Esqueci minha senha</a>
           {err && <div className="error">{err}</div>}
           <button className="btn primary big" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'}</button>
           {onCreate && <button type="button" className="btn secondary big" onClick={onCreate}>Criar minha loja · 7 dias grátis</button>}
@@ -195,6 +198,7 @@ export function StartPage({ initialMode = 'enter' }: { initialMode?: 'enter' | '
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => { if (mode === 'create') initTracking(); }, [mode]);
   if (mode === 'enter') return <EmailLoginScreen onCreate={() => setMode('create')} />;
 
   const create = async (e: FormEvent) => {
@@ -228,7 +232,8 @@ export function StartPage({ initialMode = 'enter' }: { initialMode?: 'enter' | '
           ],
         }),
       });
-      // Já entra direto na loja nova.
+      // Já entra direto na loja nova (antes, avisa os anúncios que houve um cadastro).
+      await trackSignup().catch(() => undefined);
       setPendingLogin({ slug: r.slug, token: r.token, userId: admin.id, license: r.license });
       openStore(r.slug);
     } catch (e2) {

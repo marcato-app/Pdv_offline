@@ -12,6 +12,7 @@ import { Dono } from './pages/Dono';
 import { Landing } from './pages/Landing';
 import { Termos, Privacidade } from './pages/Legal';
 import { IS_NATIVE } from './lib/platform';
+import { Forgot, ResetPassword } from './pages/Password';
 import { finishPendingLogin } from './lib/auth';
 import { startTableLabels } from './lib/table-labels';
 import { startUpdateChecks } from './lib/update';
@@ -27,6 +28,8 @@ const render = (el: JSX.Element) => createRoot(document.getElementById('root')!)
 
 if (path === '/termos') render(<Termos />);
 else if (path === '/privacidade') render(<Privacidade />);
+else if (path === '/esqueci') render(<Forgot />);
+else if (path === '/redefinir') render(<ResetPassword />);
 else if (location.pathname.startsWith('/dono')) {
   // Painel do dono do Vision PDV (lojas e chaves de ativação).
   createRoot(document.getElementById('root')!).render(<StrictMode><Dono /></StrictMode>);

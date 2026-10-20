@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useLicense, activateKey, startCheckout, confirmPayment, STATUS_LABEL, type License } from '../lib/license';
+import { useLicense, activateKey, startCheckout, startSubscription, cancelSubscription, confirmPayment, STATUS_LABEL, type License } from '../lib/license';
 import { getPlatform, IS_NATIVE, whatsLink, type PlatformInfo } from '../lib/platform';
 import { money } from '../lib/format';
+import { trackPurchase } from '../lib/tracking';
 import { dateOnly } from '../lib/format';
 import { useApp } from '../lib/app-context';
 import { canManage } from '../lib/auth';
@@ -34,27 +35,36 @@ export function ActivateBox({ lic }: { lic: License | null }) {
   const [opened, setOpened] = useState(false);
   useEffect(() => { getPlatform().then(setPlat); }, []);
 
-  // Voltou do Mercado Pago com o número do pagamento: confere e ativa na hora.
+  const { user } = useApp();
+  const [payer, setPayer] = useState(user?.email || '');
+  const sub = lic?.subscription;
+  const planName = (id?: string | null) => plat?.plans.find((x) => x.id === id)?.name || id || '';
+
+  // Voltou do Mercado Pago: confere o pagamento (ou a cobrança automática) e ativa na hora.
   useEffect(() => {
     const q = new URLSearchParams(location.search);
     const pid = q.get('payment_id') || q.get('collection_id');
-    if (!pid) return;
+    const pre = q.get('preapproval_id');
+    if (!pid && !pre) return;
     const st = q.get('status') || q.get('collection_status');
     history.replaceState(null, '', location.pathname + '?aba=assinatura');
-    if (st === 'rejected' || st === 'null') { setMsg({ ok: false, text: 'O pagamento não foi aprovado. Tente de novo ou use outra forma.' }); return; }
+    if (pid && (st === 'rejected' || st === 'null')) { setMsg({ ok: false, text: 'O pagamento não foi aprovado. Tente de novo ou use outra forma.' }); return; }
     setMsg({ ok: true, text: 'Conferindo o pagamento…' });
-    confirmPayment(pid).then((r) => {
+    confirmPayment(pid || undefined, pre || undefined).then((r) => {
       if (r && 'ok' in r && r.ok === false) setMsg({ ok: true, text: ['pending', 'in_process'].includes(String(r.status)) ? 'Pagamento em análise. A ativação acontece sozinha assim que for aprovado.' : 'Pagamento ainda não aprovado. Assim que aprovar, a ativação é automática.' });
-      else if (r && r.paidUntil > Date.now()) setMsg({ ok: true, text: `Pagamento aprovado! Assinatura válida até ${dateOnly(r.validUntil)}.` });
-      else setMsg({ ok: true, text: 'Pagamento ainda não confirmado. Assim que aprovar, a ativação é automática.' });
+      else if (r && r.paidUntil > Date.now()) {
+        setMsg({ ok: true, text: `Pagamento aprovado! Assinatura válida até ${dateOnly(r.validUntil)}.` });
+        const pl = getPlatform().then((p) => p.plans.find((x) => x.id === r.subscription?.plan));
+        pl.then((x) => trackPurchase(r.amount || x?.price || 0, x?.name)).catch(() => undefined);
+      } else setMsg({ ok: true, text: pre ? 'Cobrança automática cadastrada. Assim que o cartão for cobrado, a ativação é automática.' : 'Pagamento ainda não confirmado. Assim que aprovar, a ativação é automática.' });
     }).catch((e) => setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }));
   }, []);
 
-  const buy = async (plan: string) => {
+  const go = async (fn: () => Promise<string>) => {
     setBusy(true);
     setMsg(null);
     try {
-      const url = await startCheckout(plan);
+      const url = await fn();
       if (IS_NATIVE) { window.open(url, '_blank'); setOpened(true); setBusy(false); }
       else location.assign(url);
     } catch (e) {
@@ -71,6 +81,13 @@ export function ActivateBox({ lic }: { lic: License | null }) {
     } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }); }
     setBusy(false);
   };
+  const cancel = async () => {
+    if (!confirm('Cancelar a cobrança automática? O tempo já pago continua valendo até o fim.')) return;
+    setBusy(true);
+    try { await cancelSubscription(); setMsg({ ok: true, text: 'Cobrança automática cancelada.' }); }
+    catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }); }
+    setBusy(false);
+  };
   const submit = async () => {
     setBusy(true);
     setMsg(null);
@@ -84,9 +101,16 @@ export function ActivateBox({ lic }: { lic: License | null }) {
       setBusy(false);
     }
   };
+  const subOn = sub?.status === 'authorized';
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {plat?.checkout && (
+      {sub && (
+        <div className="spread" style={{ padding: 14, borderRadius: 14, background: subOn ? 'var(--ok-bg)' : 'var(--warn-bg)', color: subOn ? 'var(--ok)' : 'var(--warn)', fontWeight: 700 }}>
+          <span>{subOn ? `Cobrança automática ativa · plano ${planName(sub.plan)}. Renova sozinha no cartão.` : sub.status === 'paused' ? 'Cobrança automática pausada.' : 'Cobrança automática aguardando a confirmação do cartão.'}</span>
+          <button className="btn sm ghost" disabled={busy} onClick={cancel}>Cancelar cobrança</button>
+        </div>
+      )}
+      {plat?.checkout && !subOn && (
         <>
           <div className="grid">
             {plat.plans.map((pl) => (
@@ -94,11 +118,16 @@ export function ActivateBox({ lic }: { lic: License | null }) {
                 <span className="muted small">Plano {pl.name}{pl.highlight ? ` · ${pl.highlight}` : ''}</span>
                 <b>{money(pl.price)}</b>
                 <span className="muted small">{pl.days} dias de uso</span>
-                <button className={'btn ' + (pl.highlight ? 'primary' : 'secondary')} disabled={busy} onClick={() => buy(pl.id)}>Assinar {pl.name.toLowerCase()}</button>
+                <button className={'btn ' + (pl.highlight ? 'primary' : 'secondary')} disabled={busy} onClick={() => go(() => startSubscription(pl.id, payer))}>Cartão: renova sozinho</button>
+                <button className="btn sm ghost" disabled={busy} onClick={() => go(() => startCheckout(pl.id))}>Pagar só uma vez (PIX ou boleto)</button>
               </div>
             ))}
           </div>
-          <span className="muted small">Pague com PIX, cartão ou boleto pelo Mercado Pago. A ativação é automática.</span>
+          <div className="field" style={{ maxWidth: 420 }}>
+            <label htmlFor="payer">E-mail da sua conta Mercado Pago (para o cartão)</label>
+            <input id="payer" className="input" type="email" autoComplete="email" value={payer} onChange={(e) => setPayer(e.target.value)} />
+          </div>
+          <span className="muted small">No cartão, a cobrança se repete sozinha e você pode cancelar quando quiser. No PIX ou boleto, você paga um período por vez. Em todos, a ativação é automática.</span>
           {opened && <button className="btn" disabled={busy} onClick={check}>Já paguei: verificar agora</button>}
         </>
       )}
