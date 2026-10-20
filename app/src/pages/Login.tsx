@@ -198,7 +198,8 @@ export function StartPage() {
   const [login, setLogin] = useState('admin');
   const [pass, setPass] = useState('');
   const [pass2, setPass2] = useState('');
-  const [master, setMaster] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState<string | null>(null);
@@ -226,7 +227,8 @@ export function StartPage() {
     if (s.length < 3) return setErr('O código do link precisa de pelo menos 3 letras');
     if (pass.length < 4) return setErr('A senha precisa de pelo menos 4 caracteres');
     if (pass !== pass2) return setErr('As duas senhas não são iguais');
-    if (!master.trim()) return setErr('Informe a chave mestra');
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setErr('Informe um e-mail válido');
+    if (phone.replace(/\D/g, '').length < 10) return setErr('Informe o WhatsApp com DDD');
     setBusy(true);
     try {
       const now = Date.now();
@@ -235,10 +237,11 @@ export function StartPage() {
       const rec = (tbl: string, data: { id: string }) => ({ tbl, id: data.id, data, updatedAt: now, deleted: 0 });
       await api('/api/stores', {
         method: 'POST',
-        master: master.trim(),
         body: JSON.stringify({
           slug: s,
           name: storeName.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
           records: [
             rec('users', admin),
             rec('settings', { id: 'store', value: { name: storeName.trim() }, updatedAt: now, deleted: 0 } as { id: string }),
@@ -261,6 +264,7 @@ export function StartPage() {
         <div className="login-form">
           <div style={{ maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 16 }}>
             <h2 style={{ fontSize: 26 }}>Loja criada!</h2>
+            <span className="chip ok" style={{ alignSelf: 'flex-start' }}>Seu teste grátis de 7 dias começou</span>
             <p className="muted" style={{ margin: 0 }}>Este é o link da loja. Use em todos os caixas, celulares e tablets:</p>
             <div className="chip ok" style={{ fontSize: 15, padding: 14, wordBreak: 'break-all' }}>{storeLink(created)}</div>
             <p className="muted small" style={{ margin: 0 }}>No app de Windows ou do celular, use o código: <b>{created}</b></p>
@@ -281,11 +285,12 @@ export function StartPage() {
             <TextField id="sc" label={IS_APP ? 'Código da loja' : 'Código ou link da loja'} value={code} onChange={setCode} autoFocus placeholder="ex.: mercado-exemplo" />
             {err && <div className="error">{err}</div>}
             <button className="btn primary big" disabled={busy}>Continuar</button>
-            <button type="button" className="btn ghost" onClick={() => { setMode('create'); setErr(''); }}>Criar uma loja nova</button>
+            <button type="button" className="btn secondary big" onClick={() => { setMode('create'); setErr(''); }}>Criar minha loja · 7 dias grátis</button>
           </form>
         ) : (
           <form onSubmit={create}>
-            <h2 style={{ fontSize: 26, fontWeight: 700 }}>Criar loja nova</h2>
+            <h2 style={{ fontSize: 26, fontWeight: 700 }}>Teste grátis por 7 dias</h2>
+            <p className="muted" style={{ margin: 0 }}>Crie sua loja agora. Não precisa de cartão.</p>
             <TextField id="c1" label="Nome da loja" value={storeName} autoFocus onChange={(v) => { setStoreName(v); if (!slugTouched) setSlug(slugify(v)); }} />
             <TextField id="c2" label="Código do link" value={slug} onChange={(v) => { setSlug(slugify(v)); setSlugTouched(true); }}
               hint={<>O link vai ser: visionpdv.marcatoapp.com.br/<b>{slug || 'codigo'}</b>/</>} />
@@ -293,7 +298,8 @@ export function StartPage() {
             <TextField id="c4" label="Usuário do administrador" value={login} onChange={setLogin} autoComplete="username" />
             <PasswordField id="c5" label="Senha" value={pass} onChange={setPass} autoComplete="new-password" />
             <PasswordField id="c6" label="Repita a senha" value={pass2} onChange={setPass2} autoComplete="new-password" />
-            <PasswordField id="c7" label="Chave mestra do Vision PDV" value={master} onChange={setMaster} autoComplete="off" />
+            <TextField id="c8" label="E-mail" value={email} onChange={setEmail} autoComplete="email" />
+            <TextField id="c9" label="WhatsApp (com DDD)" value={phone} onChange={setPhone} autoComplete="tel" />
             {err && <div className="error">{err}</div>}
             <button className="btn primary big" disabled={busy}>{busy ? 'Criando…' : 'Criar loja'}</button>
             <button type="button" className="btn ghost" onClick={() => { setMode('enter'); setErr(''); }}>Voltar</button>

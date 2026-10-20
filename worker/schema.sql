@@ -14,9 +14,38 @@ CREATE TABLE IF NOT EXISTS records (
 CREATE INDEX IF NOT EXISTS records_seq ON records (store_id, seq);
 CREATE INDEX IF NOT EXISTS records_tbl ON records (store_id, tbl, updated_at);
 
--- Lojas. O "id" é o código que aparece no link: visionpdv.marcatoapp.com.br/<id>/
+-- Lojas. O "id" é o código da loja (aparece no link de convite ?loja=<id>).
+-- Licença: a loja pode usar até a maior data entre trial_ends (teste grátis) e paid_until (pago).
 CREATE TABLE IF NOT EXISTS stores (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  email       TEXT,
+  phone       TEXT,
+  created_at  INTEGER NOT NULL,
+  created_ip  TEXT,
+  trial_ends  INTEGER NOT NULL,
+  paid_until  INTEGER NOT NULL DEFAULT 0,
+  plan        TEXT,
+  blocked     INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS stores_ip ON stores (created_ip, created_at);
+
+-- Chaves de ativação vendidas (cada uma soma "days" dias à loja que usar).
+CREATE TABLE IF NOT EXISTS licenses (
+  code       TEXT PRIMARY KEY,
+  days       INTEGER NOT NULL,
+  note       TEXT,
+  created_at INTEGER NOT NULL,
+  used_by    TEXT,
+  used_at    INTEGER
+);
+
+-- Pagamentos já processados (para não ativar duas vezes o mesmo pagamento).
+CREATE TABLE IF NOT EXISTS payments (
   id         TEXT PRIMARY KEY,
-  name       TEXT NOT NULL,
+  store_id   TEXT NOT NULL,
+  days       INTEGER NOT NULL,
+  amount     REAL,
+  provider   TEXT,
   created_at INTEGER NOT NULL
 );

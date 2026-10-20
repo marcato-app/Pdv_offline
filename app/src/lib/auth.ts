@@ -54,8 +54,10 @@ export async function onlineLogin(slug: string, login: string, password: string)
   const l = login.trim().toLowerCase();
   const { salt } = await api<{ salt: string }>(`/api/salt?slug=${encodeURIComponent(slug)}&login=${encodeURIComponent(l)}`);
   const passHash = await hashPassword(password, salt);
-  const res = await api<{ token: string; user: { id: string } }>('/api/login', { method: 'POST', body: JSON.stringify({ slug, login: l, passHash }) });
+  const res = await api<{ token: string; user: { id: string }; license: import('./license').License | null }>('/api/login', { method: 'POST', body: JSON.stringify({ slug, login: l, passHash }) });
   await setToken(res.token);
+  const { saveLicense } = await import('./license');
+  await saveLicense(res.license);
   await syncNow();
   const u = await db.users.get(res.user.id);
   return u && !u.deleted && u.active ? u : null;

@@ -5,7 +5,9 @@
 export interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
-  API_KEY: string; // chave mestra: só quem tem cria lojas novas
+  API_KEY: string; // chave mestra: painel do dono (gerar chaves de ativação, ver lojas)
+  TRIAL_DAYS?: string; // dias grátis para loja nova (padrão 7)
+  CHECKOUT_URL?: string; // link de compra; recebe ?loja=<codigo>
 }
 
 const TABLES = new Set(['products', 'customers', 'creditEntries', 'sales', 'cashSessions', 'cashMoves', 'stockMoves', 'users', 'settings']);
@@ -55,9 +57,39 @@ async function readToken(env: Env, req: Request): Promise<string | null> {
   return safeEqual(sig, await hmac(env, `${storeId}.${exp}`)) ? storeId : null;
 }
 
+interface StoreRow { id: string; name: string; email: string | null; phone: string | null; created_at: number; trial_ends: number; paid_until: number; plan: string | null; blocked: number }
+
 async function getStore(env: Env, slug: string) {
-  return env.DB.prepare('SELECT id, name FROM stores WHERE id = ?').bind(slug).first<{ id: string; name: string }>();
+  return env.DB.prepare('SELECT * FROM stores WHERE id = ?').bind(slug).first<StoreRow>();
 }
+
+const DAY = 86_400_000;
+
+/** Situação da licença: teste grátis, ativa, vencida ou bloqueada. */
+function licenseOf(env: Env, s: StoreRow) {
+  const validUntil = Math.max(s.trial_ends, s.paid_until);
+  const now = Date.now();
+  const status = s.blocked ? 'blocked' : now > validUntil ? 'expired' : s.paid_until > now ? 'active' : 'trial';
+  const checkout = env.CHECKOUT_URL ? `${env.CHECKOUT_URL}${env.CHECKOUT_URL.includes('?') ? '&' : '?'}loja=${encodeURIComponent(s.id)}` : null;
+  return { status, trialEnds: s.trial_ends, paidUntil: s.paid_until, validUntil, daysLeft: Math.max(0, Math.ceil((validUntil - now) / DAY)), checkoutUrl: checkout };
+}
+
+/** Soma dias à licença, contando a partir de hoje ou do fim da licença atual (o que for maior). */
+async function extendStore(env: Env, s: StoreRow, days: number) {
+  const base = Math.max(Date.now(), s.trial_ends, s.paid_until);
+  const until = base + days * DAY;
+  await env.DB.prepare('UPDATE stores SET paid_until = ? WHERE id = ?').bind(until, s.id).run();
+  return { ...s, paid_until: until };
+}
+
+const KEY_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function newKey() {
+  const b = crypto.getRandomValues(new Uint8Array(12));
+  const c = [...b].map((x) => KEY_ABC[x % KEY_ABC.length]).join('');
+  return `VPDV-${c.slice(0, 4)}-${c.slice(4, 8)}-${c.slice(8, 12)}`;
+}
+
+const isMaster = (env: Env, req: Request) => safeEqual(req.headers.get('x-master-key') || '', env.API_KEY);
 
 interface PushRecord {
   tbl: string;
@@ -126,21 +158,27 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
     return s ? json({ slug: s.id, name: s.name }) : json({ error: 'Loja não encontrada' }, 404);
   }
 
-  // Criar loja nova: precisa da chave mestra.
+  // Criar loja nova (cadastro aberto, com dias grátis).
   if (p === '/api/stores' && req.method === 'POST') {
-    if (!safeEqual(req.headers.get('x-master-key') || '', env.API_KEY)) return json({ error: 'Chave mestra inválida' }, 401);
-    const body = await req.json<{ slug?: string; name?: string; records?: PushRecord[] }>();
+    const ip = req.headers.get('cf-connecting-ip') || '';
+    if (!isMaster(env, req)) {
+      const recent = await env.DB.prepare('SELECT COUNT(*) n FROM stores WHERE created_ip = ? AND created_at > ?').bind(ip, Date.now() - DAY).first<{ n: number }>();
+      if ((recent?.n || 0) >= 3) return json({ error: 'Muitas lojas criadas a partir desta internet hoje. Tente amanhã ou fale com o suporte.' }, 429);
+    }
+    const body = await req.json<{ slug?: string; name?: string; email?: string; phone?: string; records?: PushRecord[] }>();
     const slug = (body.slug || '').toLowerCase();
     if (!SLUG_RE.test(slug) || RESERVED.has(slug)) return json({ error: 'Código da loja inválido. Use letras minúsculas, números e hífen (3 a 40).' }, 400);
     if (!body.name?.trim()) return json({ error: 'Informe o nome da loja' }, 400);
-    if (await getStore(env, slug)) return json({ error: 'Este código já está em uso' }, 409);
+    if (await getStore(env, slug)) return json({ error: 'Este código já está em uso. Escolha outro.' }, 409);
+    const trialDays = Math.max(0, Number(env.TRIAL_DAYS ?? 7) || 7);
     const stmt = upsertStmt(env);
     const recs = (Array.isArray(body.records) ? body.records : []).filter(validRecord).slice(0, 20);
     await env.DB.batch([
-      env.DB.prepare('INSERT INTO stores (id, name, created_at) VALUES (?, ?, ?)').bind(slug, body.name.trim(), Date.now()),
+      env.DB.prepare('INSERT INTO stores (id, name, email, phone, created_at, created_ip, trial_ends) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .bind(slug, body.name.trim().slice(0, 80), (body.email || '').trim().slice(0, 120) || null, (body.phone || '').trim().slice(0, 30) || null, Date.now(), ip, Date.now() + trialDays * DAY),
       ...recs.map((r) => stmt.bind(slug, r.tbl, r.id, JSON.stringify(r.data), Math.floor(r.updatedAt), r.deleted ? 1 : 0)),
     ]);
-    return json({ ok: true, slug, token: await makeToken(env, slug) });
+    return json({ ok: true, slug, trialDays, token: await makeToken(env, slug) });
   }
 
   // Login, passo 1: o "sal" da senha. Para usuário que não existe, devolve um sal falso e estável.
@@ -158,13 +196,69 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
     const login = (body.login || '').trim().toLowerCase();
     const u = SLUG_RE.test(slug) ? await findUser(env, slug, login) : null;
     if (!u || !safeEqual(body.passHash || '', u.passHash)) return json({ error: 'Usuário ou senha incorretos' }, 401);
-    return json({ token: await makeToken(env, slug), user: { id: u.id, name: u.name, role: u.role } });
+    const s = await getStore(env, slug);
+    return json({ token: await makeToken(env, slug), user: { id: u.id, name: u.name, role: u.role }, license: s ? licenseOf(env, s) : null });
+  }
+
+  // ---------- Painel do dono (chave mestra) ----------
+  if (p.startsWith('/api/admin/')) {
+    if (!isMaster(env, req)) return json({ error: 'Chave mestra inválida' }, 401);
+    if (p === '/api/admin/stores' && req.method === 'GET') {
+      const { results } = await env.DB.prepare('SELECT * FROM stores ORDER BY created_at DESC LIMIT 500').all<StoreRow>();
+      return json({ stores: results.map((s) => ({ id: s.id, name: s.name, email: s.email, phone: s.phone, createdAt: s.created_at, ...licenseOf(env, s), blocked: !!s.blocked })) });
+    }
+    if (p === '/api/admin/keys' && req.method === 'GET') {
+      const { results } = await env.DB.prepare('SELECT * FROM licenses ORDER BY created_at DESC LIMIT 500').all();
+      return json({ keys: results });
+    }
+    if (p === '/api/admin/keys' && req.method === 'POST') {
+      const b = await req.json<{ days?: number; count?: number; note?: string }>();
+      const days = Math.round(Number(b.days) || 0);
+      const count = Math.min(100, Math.max(1, Math.round(Number(b.count) || 1)));
+      if (days < 1 || days > 3660) return json({ error: 'Dias inválidos' }, 400);
+      const codes = Array.from({ length: count }, newKey);
+      const stmt = env.DB.prepare('INSERT INTO licenses (code, days, note, created_at) VALUES (?, ?, ?, ?)');
+      await env.DB.batch(codes.map((c) => stmt.bind(c, days, (b.note || '').slice(0, 120) || null, Date.now())));
+      return json({ codes, days });
+    }
+    if (p === '/api/admin/extend' && req.method === 'POST') {
+      const b = await req.json<{ slug?: string; days?: number }>();
+      const s = await getStore(env, (b.slug || '').toLowerCase());
+      if (!s) return json({ error: 'Loja não encontrada' }, 404);
+      return json(licenseOf(env, await extendStore(env, s, Math.round(Number(b.days) || 0))));
+    }
+    if (p === '/api/admin/block' && req.method === 'POST') {
+      const b = await req.json<{ slug?: string; blocked?: boolean }>();
+      await env.DB.prepare('UPDATE stores SET blocked = ? WHERE id = ?').bind(b.blocked ? 1 : 0, (b.slug || '').toLowerCase()).run();
+      return json({ ok: true });
+    }
+    return json({ error: 'Não encontrado' }, 404);
   }
 
   // Daqui para baixo: precisa do acesso da loja.
   const storeId = await readToken(env, req);
   if (!storeId) return json({ error: 'Acesso expirado. Entre de novo.' }, 401);
   if (p === '/health') return json({ ok: true, store: storeId });
+
+  // Situação da licença da loja.
+  if (p === '/api/license' && req.method === 'GET') {
+    const s = await getStore(env, storeId);
+    return s ? json(licenseOf(env, s)) : json({ error: 'Loja não encontrada' }, 404);
+  }
+
+  // Ativar com chave: soma os dias da chave à loja.
+  if (p === '/api/activate' && req.method === 'POST') {
+    const code = ((await req.json<{ code?: string }>()).code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const pretty = code.length === 16 && code.startsWith('VPDV') ? `VPDV-${code.slice(4, 8)}-${code.slice(8, 12)}-${code.slice(12, 16)}` : '';
+    const lic = pretty ? await env.DB.prepare('SELECT * FROM licenses WHERE code = ?').bind(pretty).first<{ code: string; days: number; used_by: string | null }>() : null;
+    if (!lic) return json({ error: 'Chave de ativação inválida' }, 400);
+    if (lic.used_by) return json({ error: lic.used_by === storeId ? 'Esta chave já foi usada nesta loja' : 'Esta chave já foi usada' }, 409);
+    const upd = await env.DB.prepare('UPDATE licenses SET used_by = ?, used_at = ? WHERE code = ? AND used_by IS NULL').bind(storeId, Date.now(), pretty).run();
+    if (!upd.meta.changes) return json({ error: 'Esta chave já foi usada' }, 409);
+    const s = await getStore(env, storeId);
+    if (!s) return json({ error: 'Loja não encontrada' }, 404);
+    return json({ ...licenseOf(env, await extendStore(env, s, lic.days)), added: lic.days });
+  }
   if (p === '/sync/push' && req.method === 'POST') return push(env, storeId, await req.json());
   if (p === '/sync/pull' && req.method === 'GET') return pull(env, storeId, url);
   return json({ error: 'Não encontrado' }, 404);

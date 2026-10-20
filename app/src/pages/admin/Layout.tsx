@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useApp } from '../../lib/app-context';
 import { Logo, SyncBadge } from '../../components/ui';
+import { LicenseBanner } from '../../components/license';
 
 const LINKS: [string, string][] = [
   ['/pdv', 'Frente de caixa'],
@@ -29,7 +30,7 @@ export function AdminLayout() {
           <button className="btn sm ghost" onClick={() => { setUser(null); nav('/login'); }}>Sair</button>
         </div>
       </nav>
-      <main className="main"><Outlet /></main>
+      <main className="main"><LicenseBanner /><Outlet /></main>
     </div>
   );
 }

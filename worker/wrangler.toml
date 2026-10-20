@@ -19,3 +19,8 @@ database_name = "vision-pdv-db"
 database_id = "f4fa7665-92dd-4ee3-b1be-2fb1d086cce8"
 
 # A chave mestra (para criar lojas) é o segredo API_KEY. Ela não fica neste arquivo.
+
+[vars]
+TRIAL_DAYS = "7"
+# Link da página de compra (Mercado Pago, Kiwify, Hotmart…). O sistema acrescenta ?loja=<codigo>.
+CHECKOUT_URL = ""

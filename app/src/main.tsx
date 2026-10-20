@@ -8,11 +8,15 @@ import { startSyncLoop } from './lib/sync';
 import { startAutoBackup } from './lib/backup';
 import { STORE_SLUG } from './lib/store';
 import { StartPage } from './pages/Login';
+import { Dono } from './pages/Dono';
 
 // Pede ao navegador para não apagar os dados locais quando faltar espaço.
 navigator.storage?.persist?.().catch(() => undefined);
 
-if (!STORE_SLUG) {
+if (location.pathname.startsWith('/dono')) {
+  // Painel do dono do Vision PDV (lojas e chaves de ativação).
+  createRoot(document.getElementById('root')!).render(<StrictMode><Dono /></StrictMode>);
+} else if (!STORE_SLUG) {
   // Nenhuma loja escolhida neste aparelho: página inicial (entrar ou criar loja).
   createRoot(document.getElementById('root')!).render(<StrictMode><StartPage /></StrictMode>);
 } else db.open().then(async () => {

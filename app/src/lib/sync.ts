@@ -117,6 +117,8 @@ export function syncNow(): Promise<void> {
     try {
       await push(cfg);
       await pull(cfg);
+      const { refreshLicense } = await import('./license');
+      await refreshLicense();
       emit({ lastSync: Date.now(), error: null, online: true });
     } catch (e) {
       emit({ error: e instanceof Error ? e.message : String(e), online: navigator.onLine });

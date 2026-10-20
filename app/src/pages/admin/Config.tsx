@@ -8,21 +8,38 @@ import { STORE_SLUG, storeLink } from '../../lib/store';
 import { makeBackup, listBackups, readBackup, importData, exportData, downloadText, desktop } from '../../lib/backup';
 import { dateTime } from '../../lib/format';
 import { useApp } from '../../lib/app-context';
+import { useLicense, refreshLicense } from '../../lib/license';
+import { ActivateBox, LicenseSummary } from '../../components/license';
 import { Logo, SyncBadge } from '../../components/ui';
 
-const TABS = { loja: 'Loja e aparência', caixa: 'Caixa, impressora e balança', nuvem: 'Nuvem (sincronização)', backup: 'Backup' } as const;
+const TABS = { assinatura: 'Assinatura', loja: 'Loja e aparência', caixa: 'Caixa, impressora e balança', nuvem: 'Nuvem (sincronização)', backup: 'Backup' } as const;
 
 export function Config() {
-  const [tab, setTab] = useState<keyof typeof TABS>('loja');
+  const initial = new URLSearchParams(location.search).get('aba') as keyof typeof TABS | null;
+  const [tab, setTab] = useState<keyof typeof TABS>(initial && initial in TABS ? initial : 'loja');
   return (
     <>
       <div className="page-head"><h1>Configurações</h1></div>
       <div className="row">{(Object.keys(TABS) as (keyof typeof TABS)[]).map((k) => <button key={k} className={'btn sm ' + (tab === k ? 'secondary' : '')} onClick={() => setTab(k)}>{TABS[k]}</button>)}</div>
+      {tab === 'assinatura' && <Assinatura />}
       {tab === 'loja' && <Loja />}
       {tab === 'caixa' && <CaixaCfg />}
       {tab === 'nuvem' && <Nuvem />}
       {tab === 'backup' && <Backup />}
     </>
+  );
+}
+
+function Assinatura() {
+  const lic = useLicense();
+  useEffect(() => { refreshLicense(); }, []);
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <h2 style={{ fontSize: 18 }}>Assinatura do Vision PDV</h2>
+      <LicenseSummary lic={lic || null} />
+      <ActivateBox lic={lic || null} />
+      <p className="muted small" style={{ margin: 0 }}>Ao comprar, você recebe uma chave de ativação. Ela soma os dias à sua loja, inclusive se ainda estiver no teste grátis.</p>
+    </div>
   );
 }
 

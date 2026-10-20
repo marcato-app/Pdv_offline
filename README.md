@@ -53,8 +53,13 @@ Tudo fica em **https://visionpdv.marcatoapp.com.br** (site + servidor). O banco 
 
 - **Cada tela tem seu link**: `/pdv` (frente de caixa), `/painel`, `/produtos`, `/importar`, `/estoque`,
   `/clientes`, `/vendas`, `/caixas`, `/usuarios`, `/config`, `/login`.
-- **Várias lojas**: na página inicial, *Criar uma loja nova* pede a **chave mestra** (segredo `API_KEY` do servidor),
-  para só o dono do Vision PDV cadastrar lojas.
+- **Cadastro aberto com teste grátis**: na página inicial, *Criar minha loja* pede nome, e-mail e WhatsApp e libera
+  **7 dias grátis** (`TRIAL_DAYS` no `wrangler.toml`). Limite de 3 lojas por internet por dia.
+- **Assinatura**: quando vence, a frente de caixa trava (os dados continuam salvos) e aparecem *Comprar* e
+  *Tenho uma chave de ativação*. Chaves `VPDV-XXXX-XXXX-XXXX` somam 30, 90, 180 ou 365 dias.
+  O botão *Comprar* aparece quando `CHECKOUT_URL` é preenchido no `wrangler.toml`.
+- **Painel do dono**: `https://visionpdv.marcatoapp.com.br/dono`, com a **chave mestra** (segredo `API_KEY`).
+  Mostra todas as lojas (contato, situação, vencimento), gera chaves de ativação e dá dias ou bloqueia lojas.
 - **Aparelho novo**: abra `https://visionpdv.marcatoapp.com.br/?loja=codigo-da-loja` (ou digite o código na página inicial)
   e entre com usuário e senha. O login é conferido na nuvem e os dados são baixados. Depois funciona offline.
   No app de Windows e no celular, digite o código da loja.

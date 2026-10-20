@@ -10,6 +10,8 @@ import { makeBackup } from '../lib/backup';
 import { syncNow } from '../lib/sync';
 import { canManage } from '../lib/auth';
 import { Logo, Modal, Photo, SyncBadge } from '../components/ui';
+import { ExpiredScreen, LicenseBanner } from '../components/license';
+import { useLicense } from '../lib/license';
 
 type ModalKind = null | 'qty' | 'discount' | 'search' | 'cancelItem' | 'cancelSale' | 'customer' | 'sangria' | 'suprimento' | 'pay' | 'done' | 'close' | 'menu';
 
@@ -52,6 +54,7 @@ export function Caixa() {
   const [lastSale, setLastSale] = useState<Sale | null>(null);
   const [clock, setClock] = useState(Date.now());
   const codeRef = useRef<HTMLInputElement>(null);
+  const lic = useLicense();
 
   const active = items.filter((i) => !i.canceled);
   const subtotal = round2(active.reduce((s, i) => s + i.total, 0));
@@ -139,6 +142,7 @@ export function Caixa() {
 
   if (!user) return null;
   if (session === undefined) return null;
+  if (lic && (lic.status === 'expired' || lic.status === 'blocked')) return <ExpiredScreen />;
 
   if (!session) {
     return <OpenCash onOpen={async (amount) => {
@@ -177,6 +181,7 @@ export function Caixa() {
       <div className="pdv-body">
         {!active.length ? (
           <section className="pdv-left">
+            <LicenseBanner />
             <div className="idle">
               <div className="photo" style={{ width: 170, height: 170, borderRadius: 40 }}>
                 {store.logo ? <img src={store.logo} alt={store.name} /> : store.name}
