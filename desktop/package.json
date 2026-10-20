@@ -1,29 +1,39 @@
 {
   "name": "vision-pdv-desktop",
   "productName": "Vision PDV",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Vision PDV para Windows",
   "author": "Vision PDV",
   "private": true,
   "main": "main.cjs",
   "scripts": {
-    "copy-web": "node -e \"const fs=require('fs');fs.rmSync('web',{recursive:true,force:true});fs.cpSync('../app/dist','web',{recursive:true})\"",
-    "start": "npm run copy-web && electron .",
-    "dist": "npm run copy-web && electron-builder --win nsis --publish never"
+    "start": "electron .",
+    "dist": "electron-builder --win nsis --publish never"
   },
   "build": {
     "appId": "com.visionpdv.app",
     "productName": "Vision PDV",
-    "files": ["main.cjs", "preload.cjs", "web/**/*"],
-    "directories": { "output": "release", "buildResources": "build" },
-    "win": { "target": "nsis", "icon": "build/icon.png" },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "offline.html",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png"
+    },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "shortcutName": "Vision PDV",
-      "artifactName": "Instalador-Vision-PDV-${version}.exe"
+      "artifactName": "Instalador-Vision-PDV.exe"
     }
   },
   "devDependencies": {

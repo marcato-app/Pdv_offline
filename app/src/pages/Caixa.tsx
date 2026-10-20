@@ -17,6 +17,7 @@ import { Logo, Modal, Photo, SyncBadge } from '../components/ui';
 import { ExpiredScreen, LicenseBanner } from '../components/license';
 import { useLicense } from '../lib/license';
 import { ExternalPay } from '../components/ExternalPay';
+import { UpdateBanner } from '../components/UpdateBanner';
 import { loadPayConfig } from '../lib/payments';
 import type { PixKey } from '../lib/pix';
 
@@ -211,6 +212,7 @@ export function Caixa() {
       <div className="pdv-body">
         {!active.length ? (
           <section className="pdv-left">
+            <UpdateBanner />
             <LicenseBanner />
             <div className="idle">
               <div className="photo" style={{ width: 170, height: 170, borderRadius: 40 }}>

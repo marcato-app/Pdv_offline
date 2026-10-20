@@ -5,6 +5,12 @@ const config: CapacitorConfig = {
   appName: 'Vision PDV',
   webDir: 'dist',
   backgroundColor: '#F6F5FA',
+  // O app abre o sistema da nuvem (sempre atualizado). Sem internet na primeira abertura, mostra offline.html.
+  server: {
+    url: 'https://visionpdv.marcatoapp.com.br',
+    errorPath: 'offline.html',
+    allowNavigation: ['visionpdv.marcatoapp.com.br'],
+  },
   android: { allowMixedContent: false },
 };
 

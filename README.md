@@ -69,11 +69,17 @@ Publicação automática pelo GitHub (workflow **Publicar na Cloudflare**) quand
 em **Settings › Secrets and variables › Actions**: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` e
 `VISION_API_KEY` (a chave mestra).
 
+## Atualizações
+
+O app de Windows e o de Android abrem o sistema direto da nuvem e guardam uma cópia no aparelho para funcionar
+sem internet. Toda publicação nova chega a todos os aparelhos: aparece o aviso **"Nova versão disponível · Atualizar
+agora"** (no caixa, só com o caixa livre) e há o botão em **Configurações › Atualizações**. Não precisa reinstalar.
+
 ## 2. Instaladores (Windows e Android)
 
 Os instaladores são gerados pelo GitHub automaticamente:
 
-1. No GitHub, abra a aba **Actions** › **Gerar instaladores** › **Run workflow**.
+1. Envie um commit com `[gerar-instalador]` na mensagem (ou rode **Actions › Gerar instaladores**).
 2. Ao terminar, o `.exe` (Windows) e o `.apk` (Android) ficam na página **Releases**.
 
 Também roda sozinho ao criar uma tag `v1.0.0`, `v1.0.1`…

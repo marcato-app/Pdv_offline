@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../lib/app-context';
 import { Logo, SyncBadge } from '../../components/ui';
 import { LicenseBanner } from '../../components/license';
+import { UpdateBanner } from '../../components/UpdateBanner';
 
 const LINKS: [string, string][] = [
   ['/pdv', 'Frente de caixa'],
@@ -60,7 +61,7 @@ export function AdminLayout() {
         <SyncBadge />
       </header>
 
-      <main className="main"><LicenseBanner /><Outlet /></main>
+      <main className="main"><UpdateBanner /><LicenseBanner /><Outlet /></main>
 
       {/* Celular: menu fixo embaixo */}
       <nav className="mnav" aria-label="Menu principal">

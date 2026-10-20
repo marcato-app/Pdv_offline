@@ -4,6 +4,8 @@ const path = require('path');
 const fs = require('fs');
 
 const KEEP = 30;
+// O app abre o sistema da nuvem (sempre atualizado). O próprio sistema guarda uma cópia para funcionar sem internet.
+const CLOUD = 'https://visionpdv.marcatoapp.com.br/';
 const backupDir = () => path.join(app.getPath('documents'), 'VisionPDV', 'backups');
 const safeName = (n) => /^[\w.-]+\.json$/.test(n) ? n : null;
 
@@ -31,9 +33,16 @@ function createWindow() {
     callback(portList.length ? portList[0].portId : '');
   });
   win.maximize();
-  win.loadFile(path.join(__dirname, 'web', 'index.html'));
-  // Links externos abrem no navegador, não dentro do PDV.
+  win.loadURL(CLOUD);
+  // Sem internet e sem cópia guardada (primeira abertura): mostra a tela de "conecte à internet".
+  win.webContents.on('did-fail-load', (_e, code, _desc, url, isMain) => {
+    if (isMain && code !== -3 && url.startsWith(CLOUD)) win.loadFile(path.join(__dirname, 'offline.html'));
+  });
+  // Links de outros sites abrem no navegador, não dentro do PDV.
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
+  win.webContents.on('will-navigate', (e, url) => {
+    if (!url.startsWith(CLOUD) && !url.startsWith('file:')) { e.preventDefault(); shell.openExternal(url); }
+  });
 }
 
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });

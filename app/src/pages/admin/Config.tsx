@@ -18,8 +18,9 @@ import { Logo, SyncBadge } from '../../components/ui';
 import { loadPayConfig, saveSecrets, payApi, type PayConfig } from '../../lib/payments';
 import { pixCode, type PixKey, type PixKeyType } from '../../lib/pix';
 import QRCode from 'qrcode';
+import { UpdatePanel } from '../../components/UpdateBanner';
 
-const TABS = { assinatura: 'Assinatura', loja: 'Loja e aparência', cupom: 'Cupom', pagamentos: 'Pagamentos (PIX e maquininha)', whatsapp: 'WhatsApp', permissoes: 'Senhas e permissões', caixa: 'Caixa, impressora e balança', nuvem: 'Nuvem', backup: 'Backup' } as const;
+const TABS = { assinatura: 'Assinatura', loja: 'Loja e aparência', cupom: 'Cupom', pagamentos: 'Pagamentos (PIX e maquininha)', whatsapp: 'WhatsApp', permissoes: 'Senhas e permissões', atualizacoes: 'Atualizações', caixa: 'Caixa, impressora e balança', nuvem: 'Nuvem', backup: 'Backup' } as const;
 
 export function Config() {
   const initial = new URLSearchParams(location.search).get('aba') as keyof typeof TABS | null;
@@ -33,6 +34,7 @@ export function Config() {
       {tab === 'cupom' && <Cupom />}
       {tab === 'pagamentos' && <Pagamentos />}
       {tab === 'whatsapp' && <WhatsApp />}
+      {tab === 'atualizacoes' && <UpdatePanel />}
       {tab === 'permissoes' && <Permissoes />}
       {tab === 'caixa' && <><CaixaCfg /><SerialScaleCfg /><QuickItemsCfg /></>}
       {tab === 'nuvem' && <Nuvem />}
