@@ -120,6 +120,9 @@ export async function billingApi(req: Request, env: Env, url: URL, storeId: stri
 
   if (p === '/api/plans' && req.method === 'GET') return json(publicPlatform(await getPlatform(env)));
 
+  // Aberto no navegador: só explica (o Mercado Pago usa POST).
+  if (p === '/api/billing/webhook' && req.method === 'GET') return json({ ok: true, info: 'Endereço de avisos do Mercado Pago funcionando. Cole este link em Webhooks; não precisa abrir.' });
+
   // Aviso do Mercado Pago (webhook). Sempre confere direto no Mercado Pago antes de ativar.
   if (p === '/api/billing/webhook' && req.method === 'POST') {
     const platform = await getPlatform(env);
