@@ -2,8 +2,10 @@ name = "vision-pdv"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
 
+# O site principal atende *.marcatoapp.com.br. Esta regra é mais específica,
+# então só "visionpdv" vem para cá; as outras empresas continuam no site principal.
 routes = [
-  { pattern = "visionpdv.marcatoapp.com.br", custom_domain = true }
+  { pattern = "visionpdv.marcatoapp.com.br/*", zone_name = "marcatoapp.com.br" }
 ]
 
 # O site (pasta app/dist) e o servidor ficam no mesmo endereço.
