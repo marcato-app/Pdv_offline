@@ -50,7 +50,13 @@ export function CameraScan({ onCode, onClose, continuous = false, title = 'Ler c
 
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+        // Câmera de trás; se o aparelho recusar as preferências, tenta a câmera padrão.
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+        } catch (e1) {
+          if ((e1 as Error)?.name === 'NotAllowedError') throw e1;
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
         if (stop) return;
         const v = video.current!;
         v.srcObject = stream;
@@ -76,7 +82,8 @@ export function CameraScan({ onCode, onClose, continuous = false, title = 'Ler c
         }
       } catch (e) {
         const name = (e as Error)?.name;
-        setErr(name === 'NotAllowedError' ? 'Permita o uso da câmera para ler o código.' : name === 'NotFoundError' ? 'Nenhuma câmera encontrada neste aparelho.' : 'Não foi possível abrir a câmera.');
+        const ios = /iPhone|iPad/.test(navigator.userAgent);
+        setErr(name === 'NotAllowedError' ? (ios ? 'A câmera está bloqueada. No iPhone: Ajustes → Safari → Câmera → Permitir (ou toque em "aA" na barra de endereço → Ajustes do Site → Câmera).' : 'A câmera está bloqueada. Toque no cadeado ao lado do endereço e permita a câmera.') : name === 'NotFoundError' ? 'Nenhuma câmera encontrada neste aparelho.' : 'Não foi possível abrir a câmera.');
       }
     })();
 
@@ -102,18 +109,19 @@ export function CameraScan({ onCode, onClose, continuous = false, title = 'Ler c
 }
 
 /** Botão com ícone de câmera que abre o leitor. */
-export function CameraButton({ onCode, continuous, className = 'btn', label }: { onCode: (code: string) => void; continuous?: boolean; className?: string; label?: string }) {
+/** Botão com ícone de câmera. Com onOpen, quem usa abre o leitor (no caixa ele fica na tela inteira, fora do campo). */
+export function CameraButton({ onCode, continuous, className = 'btn', label, onOpen }: { onCode?: (code: string) => void; continuous?: boolean; className?: string; label?: string; onOpen?: () => void }) {
   const [open, setOpen] = useState(false);
   if (!HAS_CAMERA) return null;
   return (
     <>
-      <button type="button" className={className + ' cam-btn'} aria-label="Ler código pela câmera" title="Ler código pela câmera" onClick={() => setOpen(true)}>
+      <button type="button" className={className + ' cam-btn'} aria-label="Ler código pela câmera" title="Ler código pela câmera" onMouseDown={(e) => e.preventDefault()} onClick={() => (onOpen ? onOpen() : setOpen(true))}>
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8v8M10 8v8M13 8v8M17 8v8" />
         </svg>
         {label}
       </button>
-      {open && <CameraScan continuous={continuous} onCode={onCode} onClose={() => setOpen(false)} />}
+      {open && onCode && <CameraScan continuous={continuous} onCode={onCode} onClose={() => setOpen(false)} />}
     </>
   );
 }

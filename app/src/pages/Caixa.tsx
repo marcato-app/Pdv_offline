@@ -18,7 +18,7 @@ import { ExpiredScreen, LicenseBanner } from '../components/license';
 import { useLicense } from '../lib/license';
 import { ExternalPay } from '../components/ExternalPay';
 import { UpdateBanner } from '../components/UpdateBanner';
-import { CameraButton } from '../components/CameraScan';
+import { CameraButton, CameraScan } from '../components/CameraScan';
 import { vibrate } from '../lib/haptics';
 import { useSupportLink } from '../components/Support';
 import { loadPayConfig } from '../lib/payments';
@@ -61,6 +61,7 @@ export function Caixa() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [cpf, setCpf] = useState('');
   const [modal, setModal] = useState<ModalKind>(null);
+  const [cam, setCam] = useState(false); // leitor pela câmera (fica aberto entre um produto e outro)
   const [toast, setToast] = useState('');
   const [lastSale, setLastSale] = useState<Sale | null>(null);
   const [clock, setClock] = useState(Date.now());
@@ -228,7 +229,7 @@ export function Caixa() {
                 <h1>Próximo cliente</h1>
                 <p className="muted" style={{ margin: 0, fontSize: 18 }}>Bipe o primeiro produto para começar a venda</p>
               </div>
-              <CodeInput refEl={codeRef} code={code} setCode={setCode} onEnter={onCode} onCamera={(c) => onCode(c)} nextQty={nextQty} />
+              <CodeInput refEl={codeRef} code={code} setCode={setCode} onEnter={onCode} onCamera={() => setCam(true)} nextQty={nextQty} />
             </div>
           </section>
         ) : (
@@ -253,7 +254,7 @@ export function Caixa() {
               </div>
             </div>
             <div className="row">
-              <div style={{ flex: '1 1 300px' }}><CodeInput refEl={codeRef} code={code} setCode={setCode} onEnter={onCode} onCamera={(c) => onCode(c)} nextQty={nextQty} /></div>
+              <div style={{ flex: '1 1 300px' }}><CodeInput refEl={codeRef} code={code} setCode={setCode} onEnter={onCode} onCamera={() => setCam(true)} nextQty={nextQty} /></div>
             </div>
             <div className="table-wrap items-list">
               <table className="t" style={{ minWidth: 520 }}>
@@ -308,6 +309,8 @@ export function Caixa() {
       {toast && <div style={{ position: 'fixed', top: 80, left: '50%', transform: 'translateX(-50%)', background: 'var(--danger)', color: '#fff', padding: '14px 22px', borderRadius: 14, fontWeight: 700, zIndex: 60 }}>{toast}</div>}
 
       {authPrompt}
+      {/* Câmera antes das janelas: se bipar um produto sem cadastro, a janela aparece por cima. */}
+      {cam && <CameraScan continuous onCode={(c) => onCode(c)} onClose={() => setCam(false)} />}
       {modal === 'manual' && <ManualModal onClose={() => setModal(null)} onAdd={(it) => { addManual(it); setModal(null); }} />}
       {modal === 'unknown' && <UnknownModal code={unknownCode} onClose={() => setModal(null)} onAdd={async (desc, price, qty) => {
         if (!(await authorize('valorManual'))) return;
@@ -454,14 +457,14 @@ function UnknownModal({ code, onClose, onAdd, onCreate }: { code: string; onClos
   );
 }
 
-function CodeInput({ refEl, code, setCode, onEnter, onCamera, nextQty }: { refEl: React.RefObject<HTMLInputElement>; code: string; setCode: (s: string) => void; onEnter: () => void; onCamera: (c: string) => void; nextQty: number }) {
+function CodeInput({ refEl, code, setCode, onEnter, onCamera, nextQty }: { refEl: React.RefObject<HTMLInputElement>; code: string; setCode: (s: string) => void; onEnter: () => void; onCamera: () => void; nextQty: number }) {
   return (
     <div className="field" style={{ width: '100%', maxWidth: 560, textAlign: 'left' }}>
       <label htmlFor="code">Código de barras (F2){nextQty !== 1 ? ` · próximo item: ${qtyFmt(nextQty)} un` : ''}</label>
       <div className="row" style={{ flexWrap: 'nowrap', gap: 8 }}>
         <input id="code" ref={refEl} className="input big" style={{ flex: 1, minWidth: 0 }} autoComplete="off" inputMode="numeric" placeholder="Bipe ou digite o código e tecle Enter"
           value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onEnter(); } }} />
-        <CameraButton className="btn big" continuous onCode={onCamera} />
+        <CameraButton className="btn big" onOpen={onCamera} />
       </div>
     </div>
   );
