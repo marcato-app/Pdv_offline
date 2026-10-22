@@ -1,166 +1,187 @@
-/* Aparência do app.
-   html.mv = "Vibrante" (padrão no celular): fundo em degradê lilás → verde, cartões brancos e de vidro.
-   html.md = "Escuro": fundo escuro com brilhos verde e lilás (vale no celular e no computador).
-   As cores seguem as da loja (--primary / --secondary). */
+/* Tema do sistema: preto e branco (estilo "Minimal"), com modo claro e modo escuro ("Grafite").
+   html.vt     = tema ligado (modo claro)
+   html.vt.dk  = modo escuro
+   Verde (--primary da loja) só para dinheiro e ações de cobrar; a cor da marca (--secondary) só em detalhes. */
 
-/* ================= Celular: comum aos dois modos ================= */
+html.vt {
+  --bg: #F6F6F7;
+  --card: #FFFFFF;
+  --text: #0A0A0B;
+  --muted: #6B6B73;
+  --faint: #A1A1AA;
+  --line: #ECECEE;
+  --field: #F4F4F5;
+  --ink: #0A0A0B;          /* botões fortes, abas ativas */
+  --ink-text: #FFFFFF;
+  --hover: #F4F4F5;
+  --elev: 0 1px 2px rgba(0, 0, 0, .04), 0 8px 24px -14px rgba(0, 0, 0, .14);
+  --ok-bg: #ECFDF3; --ok: #15803D;
+  --warn-bg: #FFF7ED; --warn: #B45309;
+  --danger-bg: #FEF2F2; --danger: #DC2626;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: 'tnum' 1, 'cv11' 1;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--text);
+}
+html.vt.dk {
+  color-scheme: dark;
+  --bg: #0B0B0E;
+  --card: #141418;
+  --text: #F5F5F7;
+  --muted: #9898A3;
+  --faint: #5E5E69;
+  --line: #232329;
+  --field: #1A1A1F;
+  --ink: #F5F5F7;
+  --ink-text: #0B0B0E;
+  --hover: #1C1C21;
+  --elev: 0 0 0 1px #1F1F25;
+  --ok-bg: rgba(74, 222, 128, .12); --ok: #4ADE80;
+  --warn-bg: rgba(251, 191, 36, .12); --warn: #FBBF24;
+  --danger-bg: rgba(248, 113, 113, .12); --danger: #F87171;
+}
+html.vt body { background: var(--bg); color: var(--text); }
+html.vt h1, html.vt h2, html.vt h3 { letter-spacing: -.025em; }
+html.vt a { color: var(--text); text-underline-offset: 3px; }
+html.vt .muted { color: var(--muted); }
+
+/* ---------- Botões ---------- */
+html.vt .btn { background: var(--field); color: var(--text); font-weight: 600; border-radius: 12px; letter-spacing: -.01em; }
+html.vt .btn:hover { filter: none; background: color-mix(in srgb, var(--field) 85%, var(--text) 6%); }
+html.vt .btn.primary { background: var(--primary); color: #fff; }
+html.vt .btn.primary:hover { background: color-mix(in srgb, var(--primary) 90%, #000); }
+html.vt .btn.secondary { background: var(--ink); color: var(--ink-text); }
+html.vt .btn.secondary:hover { background: color-mix(in srgb, var(--ink) 88%, var(--bg)); }
+html.vt .btn.ghost { background: transparent; border: 1px solid var(--line); }
+html.vt .btn.ghost:hover { background: var(--hover); }
+html.vt .btn.danger { background: var(--danger-bg); color: var(--danger); }
+html.vt .btn.big { border-radius: 14px; font-weight: 650; }
+html.vt.dk .btn.primary { color: #05170C; background: color-mix(in srgb, var(--primary) 70%, #4ADE80); }
+
+/* ---------- Campos ---------- */
+html.vt .field > label, html.vt .label { font-weight: 600; color: var(--muted); }
+html.vt .input, html.vt .field input, html.vt .field select, html.vt .field textarea { background: var(--field); color: var(--text); border: 1px solid transparent; border-radius: 12px; }
+html.vt .input:focus, html.vt .field input:focus, html.vt .field select:focus, html.vt .field textarea:focus { outline: none; background: var(--card); border-color: var(--text); box-shadow: 0 0 0 4px color-mix(in srgb, var(--text) 8%, transparent); }
+html.vt .input.big { background: var(--card); border: 1.5px solid var(--line); font-weight: 600; }
+html.vt .input.big:focus { border-color: var(--text); }
+html.vt input::placeholder, html.vt textarea::placeholder { color: var(--faint); }
+html.vt.dk select option { background: var(--card); color: var(--text); }
+
+/* ---------- Cartões, números, etiquetas ---------- */
+html.vt .card { background: var(--card); border: 0; border-radius: 20px; box-shadow: var(--elev); }
+html.vt .stat { background: var(--field); border-radius: 16px; }
+html.vt .stat b { letter-spacing: -.03em; font-weight: 700; }
+html.vt .chip { background: var(--field); color: var(--text); font-weight: 600; }
+html.vt .chip.ok { background: var(--ok-bg); color: var(--ok); }
+html.vt .chip.warn { background: var(--warn-bg); color: var(--warn); }
+html.vt .chip.danger { background: var(--danger-bg); color: var(--danger); }
+html.vt .kbd { background: var(--field); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); font-weight: 700; }
+html.vt .photo { background: var(--field); color: var(--muted); }
+html.vt .photo img { background: #fff; }
+html.vt .logo-box { box-shadow: inset 0 0 0 1px var(--line); }
+html.vt .error { color: var(--danger); }
+html.vt .progress { background: var(--field); }
+html.vt .progress > span { background: var(--text); }
+html.vt .steps-list li a, html.vt .steps-list li > span { background: var(--field); color: var(--text); }
+html.vt .steps-list li.done .ck { background: var(--primary); border-color: var(--primary); }
+
+/* ---------- Tabelas ---------- */
+html.vt .table-wrap { background: var(--card); border: 1px solid var(--line); }
+html.vt table.t th { background: transparent; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line); }
+html.vt table.t td { border-top: 1px solid var(--line); }
+html.vt table.t tr.click:hover td { background: var(--hover); }
+html.vt table.t tr.sel td { background: var(--ok-bg); }
+
+/* ---------- Janelas ---------- */
+html.vt .overlay { background: rgba(10, 10, 12, .45); backdrop-filter: blur(2px); }
+html.vt .modal { background: var(--card); color: var(--text); border-radius: 22px; box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .45), 0 0 0 1px var(--line); }
+html.vt .modal-head { background: var(--card); color: var(--text); border-bottom: 1px solid var(--line); }
+html.vt .modal-head h2 { font-weight: 700 !important; }
+html.vt .modal-head .btn { background: var(--field); color: var(--text); }
+html.vt .modal-foot { border-top: 1px solid var(--line); }
+
+/* ---------- Gestão (computador) ---------- */
+html.vt .side { background: var(--card); border-radius: 20px; box-shadow: var(--elev); }
+html.vt .side a { color: var(--muted); font-weight: 550; border-radius: 10px; padding: 9px 14px; font-size: 14.5px; }
+html.vt .side a:hover:not(.active) { background: var(--hover); color: var(--text); }
+html.vt .side a.active { background: var(--field); color: var(--text); font-weight: 650; box-shadow: inset 3px 0 0 var(--text); }
+html.vt .page-head h1 { font-weight: 700; letter-spacing: -.035em; }
+
+/* ---------- Login ---------- */
+html.vt .login { background: var(--bg); }
+html.vt .login-brand { background: #0A0A0B; color: #fff; }
+html.vt.dk .login-brand { background: #141418; box-shadow: inset -1px 0 0 var(--line); }
+html.vt .login-form h2 { font-weight: 700 !important; letter-spacing: -.035em; }
+
+/* ---------- Frente de caixa ---------- */
+html.vt .pdv { background: var(--bg); }
+html.vt .pdv-head { background: var(--card); color: var(--text); border-bottom: 1px solid var(--line); }
+html.vt .pdv-head .info { color: var(--muted); }
+html.vt .current, html.vt .idle { background: var(--card); border: 0; box-shadow: var(--elev); }
+html.vt .current h2 { letter-spacing: -.025em; }
+html.vt .idle h1 { color: var(--text); letter-spacing: -.04em; font-weight: 750; }
+html.vt .total-box { background: #0A0A0B; color: #fff; border-radius: 20px; }
+html.vt.dk .total-box { background: var(--card); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+html.vt .total-box .big { letter-spacing: -.035em; font-weight: 750; }
+html.vt .pay-opt { background: var(--card); border: 1px solid var(--line); color: var(--text); font-weight: 600; }
+html.vt .pay-opt b { background: var(--field); color: var(--text); }
+html.vt .pay-opt.on { background: var(--field); border: 1.5px solid var(--text); }
+html.vt .pdv-foot { background: var(--card); border-top: 1px solid var(--line); color: var(--muted); }
+
+/* ================= Celular ================= */
+@media (max-width: 860px) {
+  html.vt .mtop { background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4); color: var(--text); border-bottom: 1px solid var(--line); padding-top: max(10px, env(safe-area-inset-top)); }
+  html.vt .mtop .name { font-weight: 700; letter-spacing: -.02em; }
+  html.vt .mtop .chip { background: var(--field); }
+  html.vt .mnav { background: color-mix(in srgb, var(--card) 90%, transparent); backdrop-filter: blur(20px) saturate(1.5); -webkit-backdrop-filter: blur(20px) saturate(1.5); border-top: 1px solid var(--line); box-shadow: none; }
+  html.vt .mnav a, html.vt .mnav button { color: var(--faint); font-weight: 600; background: transparent; }
+  html.vt .mnav a.active { color: var(--text); background: transparent; }
+  html.vt .mnav a.active svg { stroke-width: 2.4; }
+  html.vt .msheet { background: rgba(10, 10, 12, .45); }
+  html.vt .msheet .panel { background: var(--card); }
+  html.vt .msheet a, html.vt .msheet button { background: var(--field); color: var(--text); font-weight: 600; }
+  html.vt .msheet a.active { background: var(--ink); color: var(--ink-text); }
+  html.vt .card { border-radius: 18px; }
+}
 @media (max-width: 700px) {
-  html.mv, html.md { --glass: rgba(255, 255, 255, .16); --glass-b: rgba(255, 255, 255, .26); }
-  html.mv body, html.md body { background: transparent; }
-  html.mv body::before, html.md body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+  /* Login centralizado, logo e título alinhados à esquerda */
+  html.vt .login { min-height: 100vh; min-height: 100dvh; justify-content: center; padding: max(28px, env(safe-area-inset-top)) 0 max(28px, env(safe-area-inset-bottom)); }
+  html.vt .login-brand { background: transparent !important; color: var(--text); padding: 0 24px 26px !important; box-shadow: none !important; }
+  html.vt .login-brand .row span:first-child { font-size: 30px !important; font-weight: 700 !important; letter-spacing: -.035em; }
+  html.vt .login-brand .row span:last-child { color: var(--muted) !important; font-size: 15px !important; }
+  html.vt .login-brand .logo-box, html.vt .login-brand .row > div:first-child { width: 56px !important; height: 56px !important; border-radius: 16px !important; background: var(--secondary) !important; box-shadow: none; }
+  html.vt .login-form { flex: none; padding: 0 24px; }
+  html.vt .login-form h2 { display: none; }
+  html.vt .login-form .field input { height: 52px; border-radius: 14px; }
+  html.vt .login-form .btn.primary { background: var(--ink); color: var(--ink-text); height: 54px; border-radius: 14px; }
+  html.vt .login-form a { color: var(--muted); font-weight: 600; }
 
-  /* Login centralizado, logo grande */
-  html.mv .login, html.md .login { min-height: 100vh; min-height: 100dvh; flex-direction: column; justify-content: center; padding: max(24px, env(safe-area-inset-top)) 0 max(24px, env(safe-area-inset-bottom)); background: transparent; }
-  html.mv .login-brand, html.md .login-brand { background: transparent !important; border-radius: 0; padding: 0 24px 22px !important; align-items: center; text-align: center; }
-  html.mv .login-brand > .row, html.md .login-brand > .row { flex-direction: column; gap: 14px !important; }
-  html.mv .login-brand .logo-box, html.md .login-brand .logo-box, html.mv .login-brand .row > div:first-child, html.md .login-brand .row > div:first-child { width: 84px !important; height: 84px !important; border-radius: 26px !important; box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .45); }
-  html.mv .login-brand .row > div:last-child, html.md .login-brand .row > div:last-child { align-items: center; }
-  html.mv .login-brand .row span:first-child, html.md .login-brand .row span:first-child { font-size: 28px !important; letter-spacing: -.03em; }
-  html.mv .login-form, html.md .login-form { flex: none; padding: 0 22px; align-items: center; }
-  html.mv .login-form form, html.md .login-form form { gap: 14px; }
-  html.mv .login-form h2, html.md .login-form h2 { display: none; }
-
-  /* Barra de cima sem fundo, sobre o degradê */
-  html.mv .mtop, html.md .mtop { background: transparent; padding-top: max(14px, env(safe-area-inset-top)); }
-  html.mv .mtop .name, html.md .mtop .name { font-size: 19px; letter-spacing: -.02em; }
-  html.mv .page-head h1, html.md .page-head h1 { color: #fff; font-size: 26px; letter-spacing: -.03em; }
-  html.mv .main > .muted, html.md .main > .muted, html.mv .page-head .muted, html.md .page-head .muted { color: rgba(255, 255, 255, .8); }
-
-  /* Menu de baixo flutuante */
-  html.mv .admin, html.md .admin { padding-bottom: 104px; }
-  html.mv .mnav, html.md .mnav { left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); border-radius: 26px; border: 0; padding: 8px; }
-  html.mv .mnav a, html.mv .mnav button, html.md .mnav a, html.md .mnav button { border-radius: 18px; }
-  html.mv .msheet .panel, html.md .msheet .panel { border-radius: 28px 28px 0 0; }
+  /* Tabelas em cartões */
+  html.vt table.t tr { background: var(--card); border: 0; border-radius: 16px; box-shadow: var(--elev); }
+  html.vt table.t td::before { color: var(--muted); font-weight: 500; }
+  html.vt table.t tr.sel { background: var(--ok-bg); box-shadow: inset 0 0 0 1.5px var(--ok); }
+  html.vt table.t tr.click:hover td, html.vt table.t tr.sel td { background: transparent; }
 
   /* Caixa */
-  html.mv .pdv-head, html.md .pdv-head { background: transparent; padding-top: max(14px, env(safe-area-inset-top)); }
-  html.mv .pdv-head .logo-box, html.md .pdv-head .logo-box { border-radius: 12px; }
-  html.mv .pdv-paybar, html.md .pdv-paybar { left: 10px; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); border-radius: 26px; border: 0; padding: 10px; }
-  html.mv .pdv-paybar .total-box, html.md .pdv-paybar .total-box { background: transparent; color: inherit; padding: 6px 10px; }
-  html.mv .pdv-paybar .pay-btn, html.md .pdv-paybar .pay-btn { border-radius: 18px; min-height: 58px; }
-  html.mv .pdv-foot button, html.md .pdv-foot button { border-radius: 14px; }
+  html.vt .pdv-head { background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); padding-top: max(10px, env(safe-area-inset-top)); }
+  html.vt .items-list { background: transparent; border: 0; }
+  html.vt .items-list table.t tr { box-shadow: none; border-radius: 0; margin: 0; border-bottom: 1px solid var(--line); background: var(--card); }
+  html.vt .items-list table.t tr:first-child { border-radius: 16px 16px 0 0; }
+  html.vt .items-list table.t tr:last-child { border-radius: 0 0 16px 16px; border-bottom: 0; }
+  html.vt .items-list table.t tr:only-child { border-radius: 16px; }
+  html.vt .pdv-paybar { background: var(--card); border-top: 0; border-radius: 24px 24px 0 0; box-shadow: 0 -1px 0 var(--line), 0 -14px 30px -18px rgba(0, 0, 0, .3); padding: 14px 16px; padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+  html.vt .pdv-paybar .total-box { background: transparent; color: var(--text); box-shadow: none; padding: 4px 4px; }
+  html.vt .pdv-paybar .total-box .lbl { color: var(--muted) !important; }
+  html.vt .pdv-paybar .pay-btn { border-radius: 16px; min-height: 58px; }
+  html.vt .pdv-foot { background: transparent; border: 0; }
+  html.vt .pdv-foot button { background: var(--card); color: var(--text); border: 0; box-shadow: var(--elev); font-weight: 600; }
+  html.vt .pdv .cam-btn { background: var(--ink); color: var(--ink-text); border-radius: 14px; }
 }
 
-/* ================= Vibrante (C), só no celular ================= */
+/* Acabamentos */
 @media (max-width: 700px) {
-  html.mv body::before { background: linear-gradient(165deg, color-mix(in srgb, var(--secondary) 72%, #fff 28%) 0%, var(--secondary) 42%, color-mix(in srgb, var(--secondary) 45%, var(--primary) 55%) 85%, var(--primary) 120%); }
-  html.mv body::after { content: ''; position: fixed; width: 280px; height: 280px; border-radius: 50%; background: rgba(255, 255, 255, .1); top: -90px; right: -90px; z-index: -1; pointer-events: none; }
-
-  /* Login */
-  html.mv .login-brand { color: #fff; }
-  html.mv .login-brand .logo-box, html.mv .login-brand .row > div:first-child { background: #fff !important; }
-  html.mv .login-brand .row span:last-child { color: rgba(255, 255, 255, .85) !important; }
-  html.mv .login-form .field > label { color: rgba(255, 255, 255, .9); }
-  html.mv .login-form .field input, html.mv .login-form .input { background: var(--glass); color: #fff; border: 0; box-shadow: inset 0 0 0 1px var(--glass-b); height: 54px; border-radius: 16px; }
-  html.mv .login-form .field input::placeholder { color: rgba(255, 255, 255, .7); }
-  html.mv .login-form .field input:focus { outline: 2px solid #fff; background: rgba(255, 255, 255, .22); }
-  html.mv .login-form .field .btn { background: rgba(255, 255, 255, .2); color: #fff; }
-  html.mv .login-form a, html.mv .login-form .muted, html.mv .login-form p, html.mv .login-form label { color: #fff; }
-  html.mv .login-form .btn.primary { background: #fff; color: var(--secondary-dark); height: 58px; border-radius: 18px; box-shadow: 0 16px 30px -12px rgba(0, 0, 0, .45); }
-  html.mv .login-form .btn.secondary { background: rgba(255, 255, 255, .18); color: #fff; box-shadow: inset 0 0 0 1px var(--glass-b); }
-  html.mv .login-form .btn.ghost { color: #fff; border-color: var(--glass-b); }
-  html.mv .login-form .error { background: #fff; color: var(--danger); padding: 10px 12px; border-radius: 12px; }
-
-  /* Gestão */
-  html.mv .mtop { color: #fff; }
-  html.mv .mtop .chip { background: rgba(255, 255, 255, .2); color: #fff; }
-  html.mv .card { border: 0; border-radius: 22px; box-shadow: 0 14px 34px -18px rgba(20, 10, 50, .55); }
-  html.mv .main > .grid > .stat, html.mv .main > .grid > div > .stat { background: var(--glass); color: #fff; box-shadow: inset 0 0 0 1px var(--glass-b); border-radius: 20px; }
-  html.mv .main > .grid > .stat .muted { color: rgba(255, 255, 255, .82); }
-  html.mv .page-head .btn:not(.primary):not(.secondary) { background: rgba(255, 255, 255, .18); color: #fff; border: 0; }
-  html.mv .page-head .btn.secondary { background: #fff; color: var(--secondary-dark); }
-  html.mv .main > .row > .btn:not(.primary):not(.secondary) { background: rgba(255, 255, 255, .18); color: #fff; border: 0; }
-  html.mv .main > .row > .btn.secondary { background: #fff; color: var(--secondary-dark); }
-  html.mv table.t tr { border: 0; border-radius: 18px; box-shadow: 0 10px 26px -18px rgba(20, 10, 50, .6); }
-  html.mv .mnav { background: #fff; box-shadow: 0 18px 40px -14px rgba(20, 10, 50, .6); }
-  html.mv .mnav a.active { background: var(--secondary); color: #fff; }
-
-  /* Caixa */
-  html.mv .pdv { background: transparent; }
-  html.mv .pdv-head { color: #fff; }
-  html.mv .pdv-head .info { color: rgba(255, 255, 255, .85); }
-  html.mv .current, html.mv .idle { border: 0; border-radius: 22px; box-shadow: 0 14px 34px -18px rgba(20, 10, 50, .55); }
-  html.mv .pdv-left > .field > label, html.mv .pdv-left .field > label[for="code"] { color: rgba(255, 255, 255, .9); }
-  html.mv .pdv .input.big { background: var(--glass); color: #fff; border: 0; box-shadow: inset 0 0 0 1px var(--glass-b); border-radius: 16px; }
-  html.mv .pdv .input.big::placeholder { color: rgba(255, 255, 255, .75); }
-  html.mv .pdv .input.big:focus { outline: 2px solid #fff; background: rgba(255, 255, 255, .22); }
-  html.mv .pdv .cam-btn { background: #fff; color: var(--secondary); border-radius: 16px; }
-  html.mv .items-list { background: var(--glass); border: 0; border-radius: 22px; box-shadow: inset 0 0 0 1px var(--glass-b); padding: 6px; }
-  html.mv .items-list table.t tr { background: rgba(255, 255, 255, .94); }
-  html.mv .pdv-paybar { background: #fff; box-shadow: 0 20px 44px -14px rgba(20, 10, 50, .7); }
-  html.mv .pdv-paybar .total-box { color: var(--secondary-dark); }
-  html.mv .pdv-paybar .total-box .lbl { color: var(--muted) !important; }
-  html.mv .pdv-paybar .pay-btn { background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 80%, #fff 20%), var(--primary)); }
-  html.mv .pdv-foot button { background: var(--glass); color: #fff; border: 0; box-shadow: inset 0 0 0 1px var(--glass-b); }
+  html.vt table.t td { border: 0; }
+  html.vt .login-form .btn.secondary { background: var(--field); color: var(--text); }
 }
-
-/* ================= Escuro (A), celular e computador ================= */
-html.md { color-scheme: dark; --text: #f4f1ff; --muted: #a59fc0; --line: rgba(255, 255, 255, .1); --field: rgba(255, 255, 255, .07); --bg: #0b0816; --card: #151026; --warn-bg: rgba(245, 158, 11, .16); --warn: #fbbf24; --danger-bg: rgba(239, 68, 68, .16); --danger: #f87171; --ok-bg: rgba(34, 197, 94, .16); --ok: #4ade80; background: #0b0816; color: var(--text); }
-html.md body { background: #0b0816; color: var(--text); }
-html.md body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(420px 420px at 100% 0%, color-mix(in srgb, var(--secondary) 55%, transparent), transparent 70%), radial-gradient(380px 380px at 0% 100%, color-mix(in srgb, var(--primary) 35%, transparent), transparent 70%), #0b0816; }
-html.md .card, html.md .side, html.md .current, html.md .idle, html.md .table-wrap, html.md .pdv-foot, html.md .msheet .panel { background: rgba(255, 255, 255, .045); border-color: rgba(255, 255, 255, .09); color: var(--text); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-html.md .modal { background: #161127; color: var(--text); box-shadow: 0 0 0 1px rgba(255, 255, 255, .1); }
-html.md .modal-foot { border-color: var(--line); }
-html.md .stat { background: rgba(255, 255, 255, .06); }
-html.md .input, html.md .field input, html.md .field select, html.md .field textarea { background: rgba(255, 255, 255, .07); color: var(--text); border-color: rgba(255, 255, 255, .12); }
-html.md .input:focus, html.md .field input:focus, html.md .field select:focus, html.md .field textarea:focus { background: rgba(255, 255, 255, .1); outline-color: #4ade80; }
-html.md .input.big { background: rgba(255, 255, 255, .07); }
-html.md input::placeholder, html.md textarea::placeholder { color: #8a84a6; }
-html.md select option { background: #161127; color: var(--text); }
-html.md .btn { background: rgba(255, 255, 255, .08); color: var(--text); }
-html.md .btn.ghost { background: transparent; border-color: rgba(255, 255, 255, .16); }
-html.md .btn.primary { background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 70%, #fff 30%), var(--primary)); color: #04130a; box-shadow: 0 10px 28px -10px color-mix(in srgb, var(--primary) 80%, transparent); }
-html.md .btn.secondary { background: var(--secondary); color: #fff; }
-html.md .btn.danger { background: rgba(239, 68, 68, .16); color: #f87171; }
-html.md .chip { background: rgba(139, 108, 255, .18); color: #c4b5fd; }
-html.md .chip.ok { background: rgba(34, 197, 94, .16); color: #4ade80; }
-html.md .chip.warn { background: rgba(245, 158, 11, .16); color: #fbbf24; }
-html.md .chip.danger { background: rgba(239, 68, 68, .16); color: #f87171; }
-html.md .kbd { background: rgba(139, 108, 255, .2); color: #c4b5fd; }
-html.md table.t th { background: rgba(255, 255, 255, .04); color: var(--muted); border-color: var(--line); }
-html.md table.t td { border-color: var(--line); }
-html.md table.t tr.sel td { background: rgba(34, 197, 94, .1); }
-html.md .side a { color: var(--text); }
-html.md .side a:hover:not(.active) { background: rgba(255, 255, 255, .06); }
-html.md .pay-opt { background: rgba(255, 255, 255, .05); border-color: rgba(255, 255, 255, .12); color: var(--text); }
-html.md .pay-opt b { background: rgba(139, 108, 255, .2); color: #c4b5fd; }
-html.md .pay-opt.on { background: rgba(34, 197, 94, .12); border-color: #4ade80; }
-html.md .photo { background: rgba(255, 255, 255, .06); color: var(--muted); }
-html.md .logo-box { box-shadow: 0 0 0 1px rgba(255, 255, 255, .1); }
-html.md .idle h1 { background: linear-gradient(100deg, #4ade80, #a78bfa); -webkit-background-clip: text; background-clip: text; color: transparent; }
-html.md .total-box { background: linear-gradient(135deg, var(--secondary), color-mix(in srgb, var(--secondary) 60%, #000)); }
-html.md .pdv-head { background: rgba(255, 255, 255, .03); border-bottom: 1px solid rgba(255, 255, 255, .07); }
-html.md a { color: #b9a5ff; }
-html.md .error { color: #f87171; }
-html.md .progress { background: rgba(255, 255, 255, .08); }
-html.md .steps-list li a, html.md .steps-list li > span { background: rgba(255, 255, 255, .06); color: var(--text); }
-html.md .login-brand { background: linear-gradient(160deg, var(--secondary), color-mix(in srgb, var(--secondary) 55%, #000)); }
-
-@media (max-width: 700px) {
-  html.md .login-brand { background: transparent !important; }
-  html.md .login-brand .logo-box, html.md .login-brand .row > div:first-child { background: var(--secondary) !important; box-shadow: 0 0 60px color-mix(in srgb, var(--secondary) 80%, transparent); }
-  html.md .login-brand .row > div:first-child img { filter: none; }
-  html.md .login-form .field input { height: 54px; border-radius: 16px; }
-  html.md .login-form .btn.primary { height: 58px; border-radius: 18px; }
-  html.md .mtop { color: var(--text); }
-  html.md .mnav { background: rgba(23, 18, 40, .92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1), 0 18px 40px -14px rgba(0, 0, 0, .8); }
-  html.md .mnav a, html.md .mnav button { color: #8a84a6; }
-  html.md .mnav a.active { background: rgba(74, 222, 128, .12); color: #4ade80; }
-  html.md table.t tr { background: rgba(255, 255, 255, .05); border-color: rgba(255, 255, 255, .09); }
-  html.md table.t td::before { color: var(--muted); }
-  html.md .items-list table.t tr { background: rgba(255, 255, 255, .05); }
-  html.md .pdv-paybar { background: linear-gradient(135deg, var(--secondary), color-mix(in srgb, var(--secondary) 55%, #000)); color: #fff; box-shadow: 0 20px 44px -14px color-mix(in srgb, var(--secondary) 90%, transparent); }
-  html.md .pdv-paybar .total-box .lbl { color: rgba(255, 255, 255, .75) !important; }
-  html.md .pdv-foot { background: transparent; backdrop-filter: none; }
-  html.md .pdv-foot button { background: rgba(255, 255, 255, .06); color: var(--text); border-color: rgba(255, 255, 255, .1); }
-  html.md .pdv .cam-btn { background: var(--secondary); color: #fff; }
-}
-
-/* Escuro: linhas clicadas/selecionadas sem fundo branco */
-html.md table.t tr.click:hover td { background: rgba(255, 255, 255, .05); }
-html.md table.t tr.sel td { background: rgba(34, 197, 94, .1); }
-@media (max-width: 700px) {
-  html.md table.t tr.click:hover td, html.md table.t tr.sel td { background: transparent; }
-  html.md table.t tr.sel { background: rgba(34, 197, 94, .1); border-color: #4ade80; }
-  html.mv table.t tr.click:hover td, html.mv table.t tr.sel td { background: transparent; }
-}
+html.vt .login-form .btn.secondary { background: var(--field); color: var(--text); }

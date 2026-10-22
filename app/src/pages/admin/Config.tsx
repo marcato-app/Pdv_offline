@@ -582,10 +582,9 @@ function Conta() {
 function AppearancePicker() {
   const [a, setA] = useAppearance();
   const desc: Record<Appearance, string> = {
-    auto: 'Segue o celular: de dia Vibrante, no modo escuro do celular, Escuro.',
-    vibrante: 'Degradê nas cores da loja (no celular).',
-    escuro: 'Fundo escuro, cansa menos a vista à noite.',
-    classico: 'Fundo claro simples.',
+    auto: 'Segue o aparelho: claro de dia e escuro quando o celular ou o computador estiver no modo escuro.',
+    claro: 'Branco e preto, limpo e fácil de ler.',
+    escuro: 'Fundo grafite, cansa menos a vista à noite.',
   };
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

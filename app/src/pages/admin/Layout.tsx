@@ -81,7 +81,7 @@ export function AdminLayout() {
           <div className="panel" role="dialog" aria-label="Todas as telas">
             <span className="grab" />
             {LINKS.map(([to, label]) => <NavLink key={to} to={to}>{label}</NavLink>)}
-            <button type="button" onClick={() => setAppearance(dark ? 'vibrante' : 'escuro')}>{dark ? '☀️ Modo claro' : '🌙 Modo escuro'}</button>
+            <button type="button" onClick={() => setAppearance(dark ? 'claro' : 'escuro')}>{dark ? '☀️ Modo claro' : '🌙 Modo escuro'}</button>
             {support && <a href={support} target="_blank" rel="noreferrer" style={{ color: '#128c4a' }}>Falar com o suporte (WhatsApp)</a>}
             <button type="button" onClick={logout} style={{ color: 'var(--danger)' }}>Sair ({user?.name})</button>
           </div>
