@@ -2,6 +2,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './styles.css';
+import './appearance.css';
+import { startAppearance } from './lib/appearance';
 import { db } from './lib/db';
 import { loadTheme } from './lib/theme';
 import { startSyncLoop } from './lib/sync';
@@ -25,6 +27,9 @@ navigator.storage?.persist?.().catch(() => undefined);
 
 const path = location.pathname.replace(/\/+$/, '') || '/';
 const render = (el: JSX.Element) => createRoot(document.getElementById('root')!).render(<StrictMode>{el}</StrictMode>);
+
+// Aparência (degradê / escuro) vale para o sistema; a página de vendas e os textos legais têm visual próprio.
+if (!['/termos', '/privacidade'].includes(path) && !(path === '/' && !STORE_SLUG && !IS_NATIVE && location.protocol.startsWith('http'))) startAppearance();
 
 if (path === '/termos') render(<Termos />);
 else if (path === '/privacidade') render(<Privacidade />);

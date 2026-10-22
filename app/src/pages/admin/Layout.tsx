@@ -5,6 +5,7 @@ import { Logo, SyncBadge } from '../../components/ui';
 import { LicenseBanner } from '../../components/license';
 import { UpdateBanner } from '../../components/UpdateBanner';
 import { SupportFab, useSupportLink } from '../../components/Support';
+import { useAppearance, resolvedAppearance } from '../../lib/appearance';
 
 const LINKS: [string, string][] = [
   ['/pdv', 'Frente de caixa'],
@@ -41,6 +42,8 @@ export function AdminLayout() {
   const loc = useLocation();
   const [sheet, setSheet] = useState(false);
   const support = useSupportLink();
+  const [appearance, setAppearance] = useAppearance();
+  const dark = resolvedAppearance(appearance) === 'escuro';
   useEffect(() => { setSheet(false); window.scrollTo(0, 0); }, [loc.pathname]);
   const logout = () => { setUser(null); nav('/login'); };
 
@@ -78,6 +81,7 @@ export function AdminLayout() {
           <div className="panel" role="dialog" aria-label="Todas as telas">
             <span className="grab" />
             {LINKS.map(([to, label]) => <NavLink key={to} to={to}>{label}</NavLink>)}
+            <button type="button" onClick={() => setAppearance(dark ? 'vibrante' : 'escuro')}>{dark ? '☀️ Modo claro' : '🌙 Modo escuro'}</button>
             {support && <a href={support} target="_blank" rel="noreferrer" style={{ color: '#128c4a' }}>Falar com o suporte (WhatsApp)</a>}
             <button type="button" onClick={logout} style={{ color: 'var(--danger)' }}>Sair ({user?.name})</button>
           </div>

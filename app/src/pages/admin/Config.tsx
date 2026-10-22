@@ -21,6 +21,7 @@ import { loadPayConfig, saveSecrets, payApi, type PayConfig } from '../../lib/pa
 import { pixCode, type PixKey, type PixKeyType } from '../../lib/pix';
 import QRCode from 'qrcode';
 import { UpdatePanel } from '../../components/UpdateBanner';
+import { useAppearance, APPEARANCE_LABELS, type Appearance } from '../../lib/appearance';
 
 const TABS = { assinatura: 'Assinatura', loja: 'Loja e aparência', cupom: 'Cupom', pagamentos: 'Pagamentos (PIX e maquininha)', whatsapp: 'WhatsApp', permissoes: 'Senhas e permissões', atualizacoes: 'Atualizações', caixa: 'Caixa, impressora e balança', nuvem: 'Nuvem', backup: 'Backup', conta: 'Conta' } as const;
 
@@ -90,6 +91,8 @@ function Loja() {
     setSaved(true);
   };
   return (
+    <>
+    <AppearancePicker />
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div className="row" style={{ alignItems: 'flex-start', gap: 24 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
@@ -114,6 +117,7 @@ function Loja() {
         <button className="btn primary" onClick={submit}>Salvar</button>
       </div>
     </div>
+    </>
   );
 }
 
@@ -570,6 +574,28 @@ function Conta() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Aparência deste aparelho (cada celular ou computador escolhe a sua). */
+function AppearancePicker() {
+  const [a, setA] = useAppearance();
+  const desc: Record<Appearance, string> = {
+    auto: 'Segue o celular: de dia Vibrante, no modo escuro do celular, Escuro.',
+    vibrante: 'Degradê nas cores da loja (no celular).',
+    escuro: 'Fundo escuro, cansa menos a vista à noite.',
+    classico: 'Fundo claro simples.',
+  };
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <h2 style={{ fontSize: 18 }}>Aparência deste aparelho</h2>
+      <div className="row" role="radiogroup" aria-label="Aparência">
+        {(Object.keys(APPEARANCE_LABELS) as Appearance[]).map((k) => (
+          <button key={k} role="radio" aria-checked={a === k} className={'btn sm ' + (a === k ? 'secondary' : '')} onClick={() => setA(k)}>{APPEARANCE_LABELS[k]}</button>
+        ))}
+      </div>
+      <span className="muted small">{desc[a]}</span>
     </div>
   );
 }
