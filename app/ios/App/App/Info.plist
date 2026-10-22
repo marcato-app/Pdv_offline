@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>A câmera é usada para ler códigos de barras dos produtos e tirar fotos dos produtos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>As fotos são usadas para cadastrar a imagem dos produtos e a logo da loja.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>

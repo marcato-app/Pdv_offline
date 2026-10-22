@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { applyUpdate, checkForUpdate, useUpdate, APP_VERSION } from '../lib/update';
+import { IS_STORE_APP } from '../lib/store';
 
 /** Faixa "Nova versão disponível". No caixa só aparece com o caixa livre, para não atrapalhar a venda. */
 export function UpdateBanner() {
   const v = useUpdate();
   const [busy, setBusy] = useState(false);
-  if (!v) return null;
+  // No app das lojas, as atualizações chegam pela própria loja.
+  if (!v || IS_STORE_APP) return null;
   return (
     <div className="spread" style={{ background: 'var(--primary-soft)', color: 'var(--primary-dark)', borderRadius: 16, padding: '10px 16px', fontWeight: 700, fontSize: 14 }}>
       <span>Nova versão do Vision PDV disponível</span>

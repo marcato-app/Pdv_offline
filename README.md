@@ -121,3 +121,13 @@ Tudo é configurado em `/dono` → **Planos e pagamento**:
 - **Pixels**: Meta Pixel e Google (tag G-/AW- e rótulos de conversão). Carregam só no site. Eventos: visita, cadastro, assinatura paga.
 - **Cobrança automática** (assinatura recorrente do Mercado Pago, `/preapproval`). Webhook: `https://visionpdv.marcatoapp.com.br/api/billing/webhook` com os eventos Pagamentos e Planos e assinaturas.
 - Banco: rode `worker/migrate-3.sql` em bancos criados antes desta versão.
+
+## Apps da App Store e Play Store
+
+- O sistema vai **embutido** no app (`npm run build:app` + `npx cap sync`): abre na hora e funciona offline. Os dados sincronizam com a nuvem.
+- **Modo loja** (`IS_STORE_APP`): só login. Sem cadastro, preços, assinatura, pagamento ou atualização pelo site (regras 3.1.1 da Apple e de pagamentos do Google). A loja é criada e paga no site.
+- **Excluir conta**: Configurações → Conta (só o administrador, confirmando a senha). Apaga a loja na nuvem.
+- **Conta de demonstração para a revisão**: `revisao@visionpdv.app` / `VisionDemo2026!` (loja "Mercado Demonstração", acesso liberado por 10 anos). Operador do caixa: `ana` / `1234`.
+- **Build**: workflow `.github/workflows/lojas.yml` (manual ou `[gerar-lojas]` no commit).
+  - iPhone: Secrets `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (conteúdo do .p8) e `APPLE_TEAM_ID` → gera e envia para o TestFlight. Sem eles, só confere se compila.
+  - Android: Secrets `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` → `.aab` assinado nos artefatos da execução.

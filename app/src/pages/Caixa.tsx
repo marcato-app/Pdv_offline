@@ -19,6 +19,7 @@ import { useLicense } from '../lib/license';
 import { ExternalPay } from '../components/ExternalPay';
 import { UpdateBanner } from '../components/UpdateBanner';
 import { CameraButton } from '../components/CameraScan';
+import { vibrate } from '../lib/haptics';
 import { useSupportLink } from '../components/Support';
 import { loadPayConfig } from '../lib/payments';
 import type { PixKey } from '../lib/pix';
@@ -98,6 +99,7 @@ export function Caixa() {
   };
 
   const addProduct = useCallback((p: Product, qty: number, forcedTotal?: number) => {
+    vibrate('ok');
     setItems((prev) => {
       const idx = forcedTotal === undefined && p.unit === 'UN' ? prev.findIndex((i) => i.productId === p.id && !i.canceled) : -1;
       if (idx >= 0) {
@@ -128,7 +130,7 @@ export function Caixa() {
       const m = c.match(/^(\d+(?:[.,]\d+)?)\*(.+)$/);
       if (m) { qty = parseNum(m[1]); c = m[2]; }
       const found = await findProduct(c);
-      if (!found) { beep(); setUnknownCode(c); setModal('unknown'); return; }
+      if (!found) { beep(); vibrate('erro'); setUnknownCode(c); setModal('unknown'); return; }
       if (found.qty !== undefined) addProduct(found.product, found.qty, found.total);
       else if (found.product.unit === 'KG' && !m) {
         // Produto por quilo sem etiqueta: pesa na balança do caixa, ou digita o peso.

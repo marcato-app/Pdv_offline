@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from './ui';
+import { vibrate } from '../lib/haptics';
 
 // Leitor de código de barras pela câmera (celular, tablet ou webcam).
 // Usa o leitor nativo do navegador quando existe; senão carrega o ZXing só na hora.
@@ -41,7 +42,7 @@ export function CameraScan({ onCode, onClose, continuous = false, title = 'Ler c
       lastCode = c;
       lastAt = now;
       beepOk();
-      navigator.vibrate?.(60);
+      vibrate('ok');
       setLast(c);
       cb.current(c);
       if (!continuous) { stop = true; onClose(); }

@@ -9,12 +9,13 @@ import { dateOnly } from '../lib/format';
 import { useApp } from '../lib/app-context';
 import { canManage } from '../lib/auth';
 import { Logo } from './ui';
+import { IS_STORE_APP } from '../lib/store';
 
 /** Faixa no topo avisando o teste grátis ou o vencimento próximo. */
 export function LicenseBanner() {
   const lic = useLicense();
   const { user } = useApp();
-  if (!lic) return null;
+  if (!lic || IS_STORE_APP) return null;
   const soon = lic.status === 'trial' || (lic.status === 'active' && lic.daysLeft <= 5);
   if (!soon) return null;
   const text = lic.status === 'trial'
@@ -151,6 +152,23 @@ export function LicenseSummary({ lic }: { lic: License | null }) {
 export function ExpiredScreen() {
   const lic = useLicense();
   const { store, user, setUser } = useApp();
+  if (IS_STORE_APP) {
+    return (
+      <div className="overlay" style={{ background: 'var(--bg)' }}>
+        <div className="modal">
+          <div className="modal-head"><div className="row"><Logo /><h2 style={{ fontSize: 20, fontWeight: 800 }}>{store.name}</h2></div></div>
+          <div className="modal-body">
+            <h2 style={{ fontSize: 24 }}>Acesso indisponível</h2>
+            <p className="muted" style={{ margin: 0 }}>O acesso desta loja está indisponível no momento. Seus produtos, vendas e clientes continuam salvos. Fale com o administrador da conta.</p>
+          </div>
+          <div className="modal-foot">
+            {canManage(user) && <Link className="btn" to="/painel">Ir para a gestão</Link>}
+            <button className="btn" onClick={() => { setUser(null); location.assign(location.pathname.replace(/\/pdv.*$/, '/login')); }}>Sair</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="overlay" style={{ background: 'var(--bg)' }}>
       <div className="modal">

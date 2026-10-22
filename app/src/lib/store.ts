@@ -11,6 +11,9 @@ const isAppShell =
 
 export const IS_APP = isAppShell;
 
+/** App da App Store / Play Store: sem cadastro, preços, pagamento ou atualização pelo site (regras das lojas). */
+export const IS_STORE_APP = isAppShell && !!(window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
+
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;
 
 function detectSlug(): string | null {

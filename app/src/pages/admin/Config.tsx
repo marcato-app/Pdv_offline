@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { getDevice, setDevice, getSetting, setSetting, db, uid, type Sale } from '../../lib/db';
+import { getDevice, setDevice, getSetting, setSetting, db, uid, DB_NAME, type Sale } from '../../lib/db';
+import Dexie from 'dexie';
+import { hashPassword } from '../../lib/auth';
 import { DEFAULT_THEME, PRIMARY_OPTIONS, SECONDARY_OPTIONS, applyTheme, resizeImage, type StoreInfo, type Theme } from '../../lib/theme';
 import { DEFAULT_SCALE, DEFAULT_QUICK_ITEMS, type ScaleConfig, type QuickItem } from '../../lib/pdv';
 import { ACTION_LABELS, DEFAULT_PERMISSIONS, type Action, type Permissions } from '../../lib/permissions';
@@ -8,7 +10,7 @@ import { DEFAULT_SCALE_SETTINGS, getScaleSettings, setScaleSettings, pickScalePo
 import { receiptHtml, printHtml } from '../../lib/receipt';
 import { dec2, parseNum } from '../../lib/format';
 import { syncNow, testConnection } from '../../lib/sync';
-import { STORE_SLUG, storeLink } from '../../lib/store';
+import { STORE_SLUG, storeLink, IS_STORE_APP, api, goHome } from '../../lib/store';
 import { makeBackup, listBackups, readBackup, importData, exportData, downloadText, desktop } from '../../lib/backup';
 import { dateTime } from '../../lib/format';
 import { useApp } from '../../lib/app-context';
@@ -20,16 +22,18 @@ import { pixCode, type PixKey, type PixKeyType } from '../../lib/pix';
 import QRCode from 'qrcode';
 import { UpdatePanel } from '../../components/UpdateBanner';
 
-const TABS = { assinatura: 'Assinatura', loja: 'Loja e aparência', cupom: 'Cupom', pagamentos: 'Pagamentos (PIX e maquininha)', whatsapp: 'WhatsApp', permissoes: 'Senhas e permissões', atualizacoes: 'Atualizações', caixa: 'Caixa, impressora e balança', nuvem: 'Nuvem', backup: 'Backup' } as const;
+const TABS = { assinatura: 'Assinatura', loja: 'Loja e aparência', cupom: 'Cupom', pagamentos: 'Pagamentos (PIX e maquininha)', whatsapp: 'WhatsApp', permissoes: 'Senhas e permissões', atualizacoes: 'Atualizações', caixa: 'Caixa, impressora e balança', nuvem: 'Nuvem', backup: 'Backup', conta: 'Conta' } as const;
 
 export function Config() {
+  // No app das lojas não aparecem assinatura nem atualização pelo site.
+  const keys = (Object.keys(TABS) as (keyof typeof TABS)[]).filter((k) => !(IS_STORE_APP && (k === 'assinatura' || k === 'atualizacoes')));
   const initial = new URLSearchParams(location.search).get('aba') as keyof typeof TABS | null;
-  const [tab, setTab] = useState<keyof typeof TABS>(initial && initial in TABS ? initial : 'loja');
+  const [tab, setTab] = useState<keyof typeof TABS>(initial && keys.includes(initial) ? initial : 'loja');
   return (
     <>
       <div className="page-head"><h1>Configurações</h1></div>
-      <div className="row">{(Object.keys(TABS) as (keyof typeof TABS)[]).map((k) => <button key={k} className={'btn sm ' + (tab === k ? 'secondary' : '')} onClick={() => setTab(k)}>{TABS[k]}</button>)}</div>
-      {tab === 'assinatura' && <Assinatura />}
+      <div className="row">{keys.map((k) => <button key={k} className={'btn sm ' + (tab === k ? 'secondary' : '')} onClick={() => setTab(k)}>{TABS[k]}</button>)}</div>
+      {tab === 'assinatura' && !IS_STORE_APP && <Assinatura />}
       {tab === 'loja' && <Loja />}
       {tab === 'cupom' && <Cupom />}
       {tab === 'pagamentos' && <Pagamentos />}
@@ -38,6 +42,7 @@ export function Config() {
       {tab === 'permissoes' && <Permissoes />}
       {tab === 'caixa' && <><CaixaCfg /><SerialScaleCfg /><QuickItemsCfg /></>}
       {tab === 'nuvem' && <Nuvem />}
+      {tab === 'conta' && <Conta />}
       {tab === 'backup' && <Backup />}
     </>
   );
@@ -507,6 +512,63 @@ function Backup() {
           ))}</tbody>
         </table>
         {list && !list.length && <div className="empty">Nenhum backup ainda</div>}
+      </div>
+    </div>
+  );
+}
+
+/** Conta da loja: excluir tudo (loja, usuários, produtos, vendas) da nuvem e deste aparelho. */
+function Conta() {
+  const { user, store } = useApp();
+  const [open, setOpen] = useState(false);
+  const [word, setWord] = useState('');
+  const [pass, setPass] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const isAdmin = user?.role === 'admin';
+  const del = async () => {
+    setErr('');
+    if (!user) return;
+    setBusy(true);
+    try {
+      const token = await getDevice<string | null>('token', null);
+      if (!token || !navigator.onLine) throw new Error('Precisa de internet para excluir a conta');
+      const passHash = await hashPassword(pass, user.salt);
+      if (passHash !== user.passHash) throw new Error('Senha incorreta');
+      await api('/api/account/delete', { method: 'POST', token, body: JSON.stringify({ login: user.login, passHash }) });
+      db.close();
+      await Dexie.delete(DB_NAME);
+      try { localStorage.clear(); sessionStorage.clear(); } catch { /* ok */ }
+      alert('Conta excluída. Todos os dados da loja foram apagados.');
+      goHome();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <h2 style={{ fontSize: 18 }}>Conta da loja</h2>
+      <div className="grid">
+        <div className="stat"><span className="muted small">Loja</span><b style={{ fontSize: 18 }}>{store.name}</b></div>
+        <div className="stat"><span className="muted small">Você entrou como</span><b style={{ fontSize: 18 }}>{user?.email || user?.login}</b></div>
+      </div>
+      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <h3 style={{ fontSize: 16, color: 'var(--danger)' }}>Excluir conta</h3>
+        <p className="muted small" style={{ margin: 0 }}>Apaga para sempre a loja e todos os dados dela: usuários, produtos, estoque, clientes, vendas e configurações, na nuvem e neste aparelho. Não dá para desfazer. Faça um backup antes, se quiser guardar uma cópia.</p>
+        {!isAdmin ? <span className="muted small">Só o administrador da loja pode excluir a conta.</span> : !open ? (
+          <button className="btn danger" style={{ alignSelf: 'flex-start' }} onClick={() => setOpen(true)}>Excluir conta da loja</button>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 420 }}>
+            <div className="field"><label htmlFor="delw">Digite EXCLUIR para confirmar</label><input id="delw" className="input" autoComplete="off" value={word} onChange={(e) => setWord(e.target.value.toUpperCase())} /></div>
+            <div className="field"><label htmlFor="delp">Sua senha</label><input id="delp" className="input" type="password" autoComplete="current-password" value={pass} onChange={(e) => setPass(e.target.value)} /></div>
+            {err && <div className="error">{err}</div>}
+            <div className="row">
+              <button className="btn danger" disabled={busy || word !== 'EXCLUIR' || !pass} onClick={del}>{busy ? 'Excluindo…' : 'Excluir para sempre'}</button>
+              <button className="btn ghost" onClick={() => { setOpen(false); setWord(''); setPass(''); setErr(''); }}>Cancelar</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

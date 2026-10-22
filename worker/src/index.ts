@@ -329,6 +329,27 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
     if (!s) return json({ error: 'Loja não encontrada' }, 404);
     return json({ ...licenseOf(env, await extendStore(env, s, lic.days)), added: lic.days });
   }
+  // Excluir a conta da loja (exigência da App Store). Só o administrador, confirmando a senha.
+  if (p === '/api/account/delete' && req.method === 'POST') {
+    const b = await req.json<{ login?: string; passHash?: string }>();
+    const u = await findUser(env, storeId, String(b.login || '').trim().toLowerCase());
+    if (!u || u.role !== 'admin' || !safeEqual(b.passHash || '', u.passHash)) return json({ error: 'Senha do administrador incorreta' }, 401);
+    const s = await getStore(env, storeId);
+    // Cobrança automática ativa: cancela no Mercado Pago antes de apagar.
+    if (s?.sub_id && s.sub_status !== 'cancelled') {
+      const plat = await getPlatform(env);
+      if (plat.mpToken) await fetch(`https://api.mercadopago.com/preapproval/${s.sub_id}`, { method: 'PUT', headers: { authorization: `Bearer ${plat.mpToken}`, 'content-type': 'application/json' }, body: JSON.stringify({ status: 'cancelled' }) }).catch(() => undefined);
+    }
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM records WHERE store_id = ?').bind(storeId),
+      env.DB.prepare('DELETE FROM store_secrets WHERE store_id = ?').bind(storeId),
+      env.DB.prepare('DELETE FROM password_resets WHERE store_id = ?').bind(storeId),
+      env.DB.prepare('DELETE FROM wa_log WHERE store_id = ?').bind(storeId),
+      env.DB.prepare('DELETE FROM notice_log WHERE store_id = ?').bind(storeId),
+      env.DB.prepare('DELETE FROM stores WHERE id = ?').bind(storeId),
+    ]);
+    return json({ ok: true });
+  }
   if (p === '/sync/push' && req.method === 'POST') return push(env, storeId, await req.json());
   if (p === '/sync/pull' && req.method === 'GET') return pull(env, storeId, url);
   return json({ error: 'Não encontrado' }, 404);
