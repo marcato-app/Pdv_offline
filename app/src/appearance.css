@@ -185,3 +185,35 @@ html.vt .pdv-foot { background: var(--card); border-top: 1px solid var(--line); 
   html.vt .login-form .btn.secondary { background: var(--field); color: var(--text); }
 }
 html.vt .login-form .btn.secondary { background: var(--field); color: var(--text); }
+
+/* ---------- Menu "Mais" do celular: lista agrupada estilo iPhone ---------- */
+@media (max-width: 860px) {
+  html.vt .msheet .panel.ms2 { display: block; background: var(--bg); padding: 8px 16px calc(20px + env(safe-area-inset-bottom)); max-height: 88vh; border-radius: 26px 26px 0 0; }
+  html.vt .ms2 .grab { display: block; width: 38px; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--text) 18%, transparent); margin: 2px auto 12px; }
+  html.vt .ms-user { display: flex; align-items: center; gap: 12px; padding: 4px 2px 14px; }
+  html.vt .ms-user > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  html.vt .ms-user b { font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
+  html.vt .ms-user small { color: var(--muted); font-size: 13px; }
+  html.vt .ms-av { width: 44px; height: 44px; border-radius: 50%; background: var(--ink); color: var(--ink-text); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; flex: 0 0 auto; }
+  html.vt .ms-x { width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--field); color: var(--muted); display: inline-flex; align-items: center; justify-content: center; padding: 0 !important; }
+  html.vt .ms-x svg { width: 17px; height: 17px; }
+  html.vt .ms2 section { margin-top: 14px; }
+  html.vt .ms2 h3 { font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px 14px; }
+  html.vt .ms-list { background: var(--card); border-radius: 16px; overflow: hidden; box-shadow: var(--elev); }
+  html.vt .msheet .ms-list a, html.vt .msheet .ms-list button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 0 14px; border: 0; border-radius: 0; background: transparent; color: var(--text); font: inherit; font-size: 16px; font-weight: 500; text-align: left; text-decoration: none; position: relative; }
+  html.vt .msheet .ms-list a + a, html.vt .msheet .ms-list a + button, html.vt .msheet .ms-list button + a, html.vt .msheet .ms-list button + button { box-shadow: inset 0 1px 0 var(--line); }
+  html.vt .msheet .ms-list a:active, html.vt .msheet .ms-list button:active { background: var(--hover); }
+  html.vt .msheet .ms-list a.active { background: transparent; color: var(--text); font-weight: 650; }
+  html.vt .msheet .ms-list a.active .ms-ic { background: var(--ink); color: var(--ink-text); }
+  html.vt .ms-ic { width: 32px; height: 32px; border-radius: 9px; background: var(--field); color: var(--text); display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+  html.vt .ms-ic svg { width: 18px; height: 18px; }
+  html.vt .ms-chev { margin-left: auto; color: var(--faint); display: inline-flex; }
+  html.vt .ms-chev svg { width: 17px; height: 17px; }
+  html.vt .ms-sw { margin-left: auto; width: 51px; height: 31px; border-radius: 99px; background: color-mix(in srgb, var(--text) 16%, transparent); position: relative; transition: background .2s; flex: 0 0 auto; }
+  html.vt .ms-sw i { position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .25); transition: transform .2s; }
+  html.vt .ms-sw.on { background: var(--primary); }
+  html.vt .ms-sw.on i { transform: translateX(20px); }
+  html.vt .ms-out { margin-top: 14px; }
+  html.vt .msheet .ms-out button { color: var(--danger); font-weight: 600; }
+  html.vt .ms-out .ms-ic { background: var(--danger-bg); color: var(--danger); }
+}
