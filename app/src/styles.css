@@ -274,7 +274,7 @@ table.t tr.click:hover td { background: #faf9fd; }
   .items-list table.t td:nth-child(4) { display: none; }
   .items-list table.t td:nth-child(5) { grid-area: t; font-weight: 800; font-size: 16px; text-align: right; }
   .items-list table.t tr.cut td:nth-child(2) { text-decoration: line-through; }
-  .pdv-foot button.k-F2, .pdv-foot button.k-F12 { display: none; }
+  .pdv-foot button.k-F9 { display: none; }
 }
 
 /* ---------- Página de vendas e textos legais ---------- */
@@ -394,3 +394,4 @@ table.t tr.click:hover td { background: #faf9fd; }
 .cat-art { border-radius: 18px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; position: relative; overflow: hidden; }
 .cat-art::after { content: ''; position: absolute; inset: 0; background: radial-gradient(120% 90% at 20% 0%, rgba(255, 255, 255, .55), transparent 60%); pointer-events: none; }
 html.vt.dk .cat-art { filter: saturate(.9) brightness(.92); }
+.items-list:focus { outline: 2px solid var(--primary); outline-offset: 2px; }

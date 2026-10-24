@@ -25,7 +25,7 @@ import { loadPayConfig } from '../lib/payments';
 import type { PixKey } from '../lib/pix';
 import { focusMainWindow, isPdvWindow, startPdvFullscreen } from '../lib/pdvWindow';
 
-type ModalKind = null | 'qty' | 'discount' | 'search' | 'cancelItem' | 'cancelSale' | 'customer' | 'sangria' | 'suprimento' | 'pay' | 'done' | 'close' | 'menu' | 'manual' | 'unknown' | 'weight';
+type ModalKind = null | 'qty' | 'discount' | 'search' | 'cancelItem' | 'cancelSale' | 'customer' | 'sangria' | 'suprimento' | 'pay' | 'done' | 'close' | 'menu' | 'manual' | 'unknown' | 'weight' | 'mov';
 
 const METHODS: { key: string; method: PaymentMethod | 'split'; label: string }[] = [
   { key: '1', method: 'dinheiro', label: 'Dinheiro' },
@@ -94,7 +94,11 @@ export function Caixa() {
   useEffect(() => { currentSession().then(setSession); }, []);
   useEffect(() => startPdvFullscreen(), []);
   useEffect(() => { const t = setInterval(() => setClock(Date.now()), 15_000); return () => clearInterval(t); }, []);
-  useEffect(() => { if (!modal) setTimeout(() => codeRef.current?.focus(), 0); }, [modal, session]);
+  const hasItems = items.some((i) => !i.canceled);
+  // O campo do código muda de lugar quando a venda começa (tela "Próximo cliente" → tela da venda): devolve o foco.
+  useEffect(() => { if (!modal) setTimeout(() => codeRef.current?.focus(), 0); }, [modal, session, hasItems]);
+  const [payInit, setPayInit] = useState<PaymentMethod | undefined>(undefined);
+  const itemsRef = useRef<HTMLDivElement>(null);
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(''), 3000); return () => clearTimeout(t); } }, [toast]);
 
   const resetSale = () => {
@@ -163,18 +167,19 @@ export function Caixa() {
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (modal || !session || authPrompt) return;
+      const pay = (m?: PaymentMethod) => { if (active.length) { setPayInit(m); setModal('pay'); } };
       const map: Record<string, () => void> = {
-        F1: () => ask('valorManual', 'manual')(),
-        F2: () => codeRef.current?.focus(),
-        F3: () => setModal('qty'),
+        F1: () => (e.ctrlKey ? ask('valorManual', 'manual')() : setModal('search')),
+        F2: () => setModal('qty'),
+        F3: () => active.length && ask('cancelarItem', 'cancelItem')(),
         F4: () => active.length && ask('desconto', 'discount')(),
-        F5: () => setModal('search'),
-        F6: () => (e.ctrlKey ? active.length && ask('cancelarVenda', 'cancelSale')() : active.length && ask('cancelarItem', 'cancelItem')()),
-        F7: () => setModal('customer'),
-        F8: () => ask('sangria', 'sangria')(),
-        F9: () => ask('suprimento', 'suprimento')(),
-        F10: () => active.length && setModal('pay'),
-        F11: () => !active.length && ask('fecharCaixa', 'close')(),
+        F5: () => pay(e.ctrlKey ? 'pix' : 'dinheiro'),
+        F6: () => (e.ctrlKey ? active.length && ask('cancelarVenda', 'cancelSale')() : setModal('customer')),
+        F7: () => pay('credito'),
+        F8: () => pay('debito'),
+        F9: () => focusItems(),
+        F10: () => setModal('mov'),
+        F11: () => pay('crediario'),
         F12: () => setModal('menu'),
       };
       const fn = map[e.key];
@@ -182,7 +187,28 @@ export function Caixa() {
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [modal, session, active.length, authPrompt]);
+  }, [modal, session, active.length, authPrompt, items, selected]);
+
+  // F9: anda pelos itens da compra com as setas (Enter ou Esc volta para o código).
+  function focusItems() {
+    if (!items.length) return;
+    if (selected < 0) setSelected(items.length - 1);
+    itemsRef.current?.focus();
+  }
+  const onItemsKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const n = Math.min(items.length - 1, Math.max(0, selected + (e.key === 'ArrowDown' ? 1 : -1)));
+      setSelected(n);
+      itemsRef.current?.querySelectorAll('tbody tr')[n]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); codeRef.current?.focus(); }
+    else if (e.key === 'Delete') { e.preventDefault(); ask('cancelarItem', 'cancelItem')(); }
+  };
+  const onCodeEnter = () => {
+    // Campo vazio + Enter: vai para o pagamento (todas as formas).
+    if (!code.trim()) { if (active.length) { setPayInit(undefined); setModal('pay'); } return; }
+    onCode();
+  };
 
   if (!user) return null;
   if (session === undefined) return null;
@@ -200,19 +226,22 @@ export function Caixa() {
   }
 
   const current = selected >= 0 ? items[selected] : null;
+  const payBtn = (m?: PaymentMethod) => () => { if (active.length) { setPayInit(m); setModal('pay'); } };
   const shortcuts: [string, string, () => void][] = [
-    ['F1', 'Valor manual', ask('valorManual', 'manual')],
-    ['F2', 'Código', () => codeRef.current?.focus()],
-    ['F3', 'Qtd', () => setModal('qty')],
+    ['F1', 'Pesquisa produto', () => setModal('search')],
+    ['F2', 'Quantidade', () => setModal('qty')],
+    ['F3', 'Cancelar item', () => { if (active.length) ask('cancelarItem', 'cancelItem')(); }],
     ['F4', 'Desconto', () => { if (active.length) ask('desconto', 'discount')(); }],
-    ['F5', 'Buscar', () => setModal('search')],
-    ['F6', 'Cancelar item', () => { if (active.length) ask('cancelarItem', 'cancelItem')(); }],
-    ['F7', 'Cliente', () => setModal('customer')],
-    ['F8', 'Sangria', ask('sangria', 'sangria')],
-    ['F9', 'Suprimento', ask('suprimento', 'suprimento')],
-    ['F10', 'Pagamento', () => active.length && setModal('pay')],
-    ['F11', 'Fechar caixa', () => { if (!active.length) ask('fecharCaixa', 'close')(); }],
-    ['F12', 'Menu', () => setModal('menu')],
+    ['F5', 'Dinheiro', payBtn('dinheiro')],
+    ['F6', 'Cliente', () => setModal('customer')],
+    ['F7', 'Cartão crédito', payBtn('credito')],
+    ['F8', 'Cartão débito', payBtn('debito')],
+    ['F9', 'Itens da compra', () => focusItems()],
+    ['F10', 'Movimento caixa', () => setModal('mov')],
+    ['F11', 'Crediário', payBtn('crediario')],
+    ['F12', 'Configurações', () => setModal('menu')],
+    ['Ctrl+F1', 'Valor manual', ask('valorManual', 'manual')],
+    ['Ctrl+F5', 'PIX', payBtn('pix')],
   ];
 
   return (
@@ -241,7 +270,7 @@ export function Caixa() {
                 <h1>Próximo cliente</h1>
                 <p className="muted" style={{ margin: 0, fontSize: 18 }}>Bipe o primeiro produto para começar a venda</p>
               </div>
-              <CodeInput refEl={codeRef} code={code} setCode={setCode} onEnter={onCode} onCamera={() => setCam(true)} nextQty={nextQty} />
+              <CodeInput refEl={codeRef} code={code} setCode={setCode} onEnter={onCodeEnter} onCamera={() => setCam(true)} nextQty={nextQty} />
             </div>
           </section>
         ) : (
@@ -266,9 +295,9 @@ export function Caixa() {
               </div>
             </div>
             <div className="row">
-              <div style={{ flex: '1 1 300px' }}><CodeInput refEl={codeRef} code={code} setCode={setCode} onEnter={onCode} onCamera={() => setCam(true)} nextQty={nextQty} /></div>
+              <div style={{ flex: '1 1 300px' }}><CodeInput refEl={codeRef} code={code} setCode={setCode} onEnter={onCodeEnter} onCamera={() => setCam(true)} nextQty={nextQty} /></div>
             </div>
-            <div className="table-wrap items-list">
+            <div className="table-wrap items-list" ref={itemsRef} tabIndex={-1} onKeyDown={onItemsKey}>
               <table className="t" style={{ minWidth: 520 }}>
                 <thead><tr><th>#</th><th>Produto</th><th>Qtd</th><th>Unit.</th><th className="right">Total</th></tr></thead>
                 <tbody>
@@ -295,10 +324,10 @@ export function Caixa() {
             <div className="lbl" style={{ fontSize: 14, fontWeight: 700, marginTop: 6 }}>TOTAL A PAGAR</div>
             <div className="big">{money(total)}</div>
           </div>
-          <button className="btn primary big pay-btn" style={{ height: 64 }} disabled={!active.length} onClick={() => setModal('pay')}>Pagamento (F10)</button>
+          <button className="btn primary big pay-btn" style={{ height: 64 }} disabled={!active.length} onClick={payBtn()}>Pagamento (Enter)</button>
           </div>
           <div className="card pdv-extra" style={{ padding: 16, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14 }}>
-            <span className="muted">Cliente (F7)</span>
+            <span className="muted">Cliente (F6)</span>
             <b>{customer ? customer.name : 'Consumidor final'}</b>
             {cpf && <span>CPF {formatCpf(cpf)}</span>}
           </div>
@@ -315,7 +344,7 @@ export function Caixa() {
       </div>
 
       <footer className="pdv-foot">
-        {shortcuts.map(([k, l, fn]) => <button key={k} className={'k-' + k} onClick={fn}><span className="kbd">{k}</span>{l}</button>)}
+        {shortcuts.map(([k, l, fn]) => <button key={k} className={'k-' + k.replace('+', '-')} onClick={fn}><span className="kbd">{k}</span>{l}</button>)}
       </footer>
 
       {toast && <div style={{ position: 'fixed', top: 80, left: '50%', transform: 'translateX(-50%)', background: 'var(--danger)', color: '#fff', padding: '14px 22px', borderRadius: 14, fontWeight: 700, zIndex: 60 }}>{toast}</div>}
@@ -362,7 +391,7 @@ export function Caixa() {
         printHtml(await cashMoveHtml(modal, amount, reason, user.name));
         setModal(null);
       }} />}
-      {modal === 'pay' && <PayModal total={total} customer={customer} onClose={() => setModal(null)} onPaid={async (payments) => {
+      {modal === 'pay' && <PayModal total={total} customer={customer} initial={payInit} onClose={() => setModal(null)} onPaid={async (payments) => {
         try {
           const sale = await finalizeSale({ session, operator: user, items, discount, payments, customerId: customer?.id, cpf: cpf || undefined });
           setLastSale(sale);
@@ -391,6 +420,12 @@ export function Caixa() {
         printHtml(await closingHtml(closed, sum));
         setSession(null);
         setModal(null);
+      }} />}
+      {modal === 'mov' && <MovModal canClose={!active.length} onClose={() => setModal(null)} onPick={(k) => {
+        setModal(null);
+        if (k === 'sangria') ask('sangria', 'sangria')();
+        if (k === 'suprimento') ask('suprimento', 'suprimento')();
+        if (k === 'close') ask('fecharCaixa', 'close')();
       }} />}
       {modal === 'menu' && (
         <Modal title="Menu" onClose={() => setModal(null)}>
@@ -473,7 +508,7 @@ function UnknownModal({ code, onClose, onAdd, onCreate }: { code: string; onClos
 function CodeInput({ refEl, code, setCode, onEnter, onCamera, nextQty }: { refEl: React.RefObject<HTMLInputElement>; code: string; setCode: (s: string) => void; onEnter: () => void; onCamera: () => void; nextQty: number }) {
   return (
     <div className="field" style={{ width: '100%', maxWidth: 560, textAlign: 'left' }}>
-      <label htmlFor="code">Código de barras (F2){nextQty !== 1 ? ` · próximo item: ${qtyFmt(nextQty)} un` : ''}</label>
+      <label htmlFor="code">Código de barras{nextQty !== 1 ? ` · próximo item: ${qtyFmt(nextQty)} un` : ''}</label>
       <div className="row" style={{ flexWrap: 'nowrap', gap: 8 }}>
         <input id="code" ref={refEl} className="input big" style={{ flex: 1, minWidth: 0 }} autoComplete="off" inputMode="numeric" placeholder="Bipe ou digite o código e tecle Enter"
           value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onEnter(); } }} />
@@ -594,7 +629,7 @@ function CashMoveModal({ type, onClose, onOk }: { type: 'sangria' | 'suprimento'
   );
 }
 
-function PayModal({ total, customer, onClose, onPaid }: { total: number; customer: Customer | null; onClose: () => void; onPaid: (p: Payment[]) => void }) {
+function PayModal({ total, customer, initial, onClose, onPaid }: { total: number; customer: Customer | null; initial?: PaymentMethod; onClose: () => void; onPaid: (p: Payment[]) => void }) {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [method, setMethod] = useState<PaymentMethod>('dinheiro');
   const [step, setStep] = useState<'method' | 'amount'>('method');
@@ -622,13 +657,16 @@ function PayModal({ total, customer, onClose, onPaid }: { total: number; custome
     setTimeout(() => { amountRef.current?.focus(); amountRef.current?.select(); }, 0);
   };
 
+  // Aberto por F5/F7/F8/F11: já entra na forma escolhida.
+  useEffect(() => { if (initial) choose(initial); }, []);
+
   const confirm = async () => {
     setErr('');
     let value = typed;
     if (value <= 0) return setErr('Informe o valor');
     if (method !== 'dinheiro' && value > remaining + 0.001) return setErr('Este valor é maior que o que falta pagar');
     if (method === 'crediario') {
-      if (!customer) return setErr('Identifique o cliente antes (F7)');
+      if (!customer) return setErr('Identifique o cliente antes (F6)');
       const owed = await customerBalance(customer.id);
       if (customer.creditLimit > 0 && owed + value > customer.creditLimit + 0.001) return setErr(`Limite insuficiente. Disponível: ${money(customer.creditLimit - owed)}`);
     }
@@ -653,7 +691,7 @@ function PayModal({ total, customer, onClose, onPaid }: { total: number; custome
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (step !== 'method' || external) return;
+      if (step !== 'method' || external || e.defaultPrevented) return; // defaultPrevented: o Enter que abriu esta janela
       const m = METHODS.find((x) => x.key === e.key);
       if (m) { e.preventDefault(); choose(m.method); }
       if (e.key === 'Enter') { e.preventDefault(); choose(method); }
@@ -740,6 +778,30 @@ function CloseModal({ session, onClose, onClosed }: { session: CashSession; onCl
           <span className="muted small">Ao fechar, um backup é gerado automaticamente.</span>
         </div>
       </div>
+    </Modal>
+  );
+}
+
+/** F10: sangria, suprimento e fechamento do caixa. */
+function MovModal({ canClose, onClose, onPick }: { canClose: boolean; onClose: () => void; onPick: (k: 'sangria' | 'suprimento' | 'close') => void }) {
+  const opts: ['1' | '2' | '3', 'sangria' | 'suprimento' | 'close', string][] = [['1', 'sangria', 'Sangria (retirar dinheiro)'], ['2', 'suprimento', 'Suprimento (colocar dinheiro)'], ['3', 'close', 'Fechar caixa']];
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
+      const o = opts.find((x) => x[0] === e.key);
+      if (o && (o[1] !== 'close' || canClose)) { e.preventDefault(); onPick(o[1]); }
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  });
+  return (
+    <Modal title="Movimento do caixa" onClose={onClose} footer={<button className="btn" onClick={onClose}>Voltar (Esc)</button>}>
+      <div className="pay-grid">
+        {opts.map(([k, id, label]) => (
+          <button key={k} type="button" className="pay-opt" disabled={id === 'close' && !canClose} onClick={() => onPick(id)}><b>{k}</b>{label}</button>
+        ))}
+      </div>
+      {!canClose && <span className="muted small">Para fechar o caixa, termine ou cancele a venda em andamento.</span>}
     </Modal>
   );
 }
