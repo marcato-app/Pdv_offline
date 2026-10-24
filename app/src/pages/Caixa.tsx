@@ -297,7 +297,7 @@ export function Caixa() {
               )}
             </div>
           <section className="pdv-left">
-            <div className="pdv-list">
+            <div className={'pdv-list' + (store.logo ? ' wm' : '')} style={store.logo ? ({ '--wm': `url("${store.logo}")` } as React.CSSProperties) : undefined}>
               <div className="row" style={{ padding: '14px 14px 4px' }}>
               <div style={{ flex: '1 1 300px' }}><CodeInput refEl={codeRef} code={code} setCode={setCode} onEnter={onCodeEnter} onCamera={() => setCam(true)} nextQty={nextQty} /></div>
             </div>

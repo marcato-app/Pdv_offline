@@ -446,3 +446,9 @@ html.vt.dk .cat-art { filter: saturate(.9) brightness(.92); }
   .pdv-keys .kg button { font-size: 12px; padding: 1px 0; }
 }
 .pdv-keys .kg b { min-width: 44px; }
+
+/* Logo da loja bem clarinho no fundo da lista de itens (marca-d'água). */
+.pdv-list { position: relative; }
+.pdv-list.wm::after { content: ''; position: absolute; left: 0; right: 0; top: 96px; bottom: 0; background: var(--wm) center 50% / min(46%, 380px) auto no-repeat; opacity: .08; pointer-events: none; }
+html.vt.dk .pdv-list.wm::after { opacity: .12; }
+@media (max-width: 700px) { .pdv-list.wm::after { display: none; } }
