@@ -6,6 +6,7 @@ import { LicenseBanner } from '../../components/license';
 import { UpdateBanner } from '../../components/UpdateBanner';
 import { SupportFab, useSupportLink } from '../../components/Support';
 import { useAppearance, resolvedAppearance } from '../../lib/appearance';
+import { IS_STORE_APP } from '../../lib/store';
 
 const LINKS: [string, string][] = [
   ['/pdv', 'Frente de caixa'],
@@ -49,6 +50,7 @@ const G = {
   usuarios: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
   config: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></>,
   moon: <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />,
+  download: <><path d="M12 3v12M7 10l5 5 5-5" /><path d="M5 21h14" /></>,
   help: <><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4.5M12 17.5h.01" /></>,
   out: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></>,
   chev: <path d="m9 6 6 6-6 6" />,
@@ -128,6 +130,7 @@ export function AdminLayout() {
               <h3>Preferências</h3>
               <div className="ms-list">
                 <button type="button" role="switch" aria-checked={dark} onClick={() => setAppearance(dark ? 'claro' : 'escuro')}><span className="ms-ic"><Icon d={G.moon} /></span>Modo escuro<span className={'ms-sw' + (dark ? ' on' : '')}><i /></span></button>
+                {!IS_STORE_APP && <NavLink to="/config?aba=app"><span className="ms-ic"><Icon d={G.download} /></span>Baixar o app<span className="ms-chev"><Icon d={G.chev} /></span></NavLink>}
                 {support && <a href={support} target="_blank" rel="noreferrer"><span className="ms-ic"><Icon d={G.help} /></span>Falar com o suporte<span className="ms-chev"><Icon d={G.chev} /></span></a>}
               </div>
             </section>

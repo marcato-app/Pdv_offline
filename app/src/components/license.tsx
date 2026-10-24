@@ -142,8 +142,8 @@ export function LicenseSummary({ lic }: { lic: License | null }) {
   return (
     <div className="grid">
       <div className="stat"><span className="muted small">Situação</span><b><span className={'chip ' + tone} style={{ fontSize: 16 }}>{STATUS_LABEL[lic.status]}</span></b></div>
-      <div className="stat"><span className="muted small">Válida até</span><b>{dateOnly(lic.validUntil)}</b></div>
-      <div className="stat"><span className="muted small">Dias restantes</span><b>{lic.daysLeft}</b></div>
+      <div className="stat"><span className="muted small">Válida até</span><b>{lic.paidUntil > Date.UTC(2090, 0, 1) ? 'Vitalícia' : dateOnly(lic.validUntil)}</b></div>
+      <div className="stat"><span className="muted small">Dias restantes</span><b>{lic.paidUntil > Date.UTC(2090, 0, 1) ? 'Sem vencimento' : lic.daysLeft}</b></div>
     </div>
   );
 }

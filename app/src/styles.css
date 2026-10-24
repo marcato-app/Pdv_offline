@@ -388,3 +388,6 @@ table.t tr.click:hover td { background: #faf9fd; }
 .tree-nav { display: flex; flex-wrap: wrap; gap: 6px; }
 .tree-nav button { border: 0; background: var(--field); color: inherit; font: inherit; font-size: 13px; font-weight: 600; padding: 6px 10px; border-radius: 99px; cursor: pointer; }
 .tree-nav button.on { background: var(--text, #1e1b2e); color: var(--card, #fff); }
+.dl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.dl-grid .btn { white-space: normal; }
+@media (max-width: 700px) { .dl-grid { grid-template-columns: 1fr; } }

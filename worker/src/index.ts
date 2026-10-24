@@ -365,6 +365,10 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     const p = url.pathname;
+    // Links fixos para baixar os instaladores (a hospedagem pode mudar sem atualizar o app).
+    const REL = 'https://github.com/marcato-app/Pdv_offline/releases/latest/download/';
+    if (p === '/baixar/windows') return Response.redirect(REL + 'Instalador-Vision-PDV.exe', 302);
+    if (p === '/baixar/android') return Response.redirect(REL + 'Vision-PDV-Android.apk', 302);
     const isApi = p === '/health' || p.startsWith('/sync/') || p.startsWith('/api/');
     if (isApi) {
       if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });

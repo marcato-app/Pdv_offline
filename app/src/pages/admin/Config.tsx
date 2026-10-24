@@ -10,7 +10,7 @@ import { DEFAULT_SCALE_SETTINGS, getScaleSettings, setScaleSettings, pickScalePo
 import { receiptHtml, printHtml } from '../../lib/receipt';
 import { dec2, parseNum } from '../../lib/format';
 import { syncNow, testConnection } from '../../lib/sync';
-import { STORE_SLUG, storeLink, IS_STORE_APP, api, goHome } from '../../lib/store';
+import { STORE_SLUG, storeLink, IS_STORE_APP, IS_APP, CLOUD_URL, api, goHome } from '../../lib/store';
 import { makeBackup, listBackups, readBackup, importData, exportData, downloadText, desktop } from '../../lib/backup';
 import { dateTime } from '../../lib/format';
 import { useApp } from '../../lib/app-context';
@@ -23,11 +23,11 @@ import QRCode from 'qrcode';
 import { UpdatePanel } from '../../components/UpdateBanner';
 import { useAppearance, APPEARANCE_LABELS, type Appearance } from '../../lib/appearance';
 
-const TABS = { assinatura: 'Assinatura', loja: 'Loja e aparência', cupom: 'Cupom', pagamentos: 'Pagamentos (PIX e maquininha)', whatsapp: 'WhatsApp', permissoes: 'Senhas e permissões', atualizacoes: 'Atualizações', caixa: 'Caixa, impressora e balança', nuvem: 'Nuvem', backup: 'Backup', conta: 'Conta' } as const;
+const TABS = { assinatura: 'Assinatura', loja: 'Loja e aparência', cupom: 'Cupom', pagamentos: 'Pagamentos (PIX e maquininha)', whatsapp: 'WhatsApp', permissoes: 'Senhas e permissões', atualizacoes: 'Atualizações', caixa: 'Caixa, impressora e balança', nuvem: 'Nuvem', backup: 'Backup', app: 'Baixar o app', conta: 'Conta' } as const;
 
 export function Config() {
   // No app das lojas não aparecem assinatura nem atualização pelo site.
-  const keys = (Object.keys(TABS) as (keyof typeof TABS)[]).filter((k) => !(IS_STORE_APP && (k === 'assinatura' || k === 'atualizacoes')));
+  const keys = (Object.keys(TABS) as (keyof typeof TABS)[]).filter((k) => !(IS_STORE_APP && (k === 'assinatura' || k === 'atualizacoes' || k === 'app')));
   const initial = new URLSearchParams(location.search).get('aba') as keyof typeof TABS | null;
   const [tab, setTab] = useState<keyof typeof TABS>(initial && keys.includes(initial) ? initial : 'loja');
   return (
@@ -43,6 +43,7 @@ export function Config() {
       {tab === 'permissoes' && <Permissoes />}
       {tab === 'caixa' && <><CaixaCfg /><SerialScaleCfg /><QuickItemsCfg /></>}
       {tab === 'nuvem' && <Nuvem />}
+      {tab === 'app' && <BaixarApp />}
       {tab === 'conta' && <Conta />}
       {tab === 'backup' && <Backup />}
     </>
@@ -595,6 +596,31 @@ function AppearancePicker() {
         ))}
       </div>
       <span className="muted small">{desc[a]}</span>
+    </div>
+  );
+}
+
+/** Instaladores do Vision PDV: Windows (.exe), Android (.apk) e iPhone (pelo navegador). */
+function BaixarApp() {
+  const base = IS_APP ? CLOUD_URL : '';
+  const items: [string, string, string, string | null][] = [
+    ['Windows', 'Computador do caixa. Abre em tela cheia, imprime cupom direto e funciona sem internet.', 'Baixar (.exe)', `${base}/baixar/windows`],
+    ['Android', 'Celular ou tablet Android. Depois de baixar, toque no arquivo e permita "instalar de fontes desconhecidas".', 'Baixar (.apk)', `${base}/baixar/android`],
+    ['iPhone e iPad', 'Abra visionpdv.marcatoapp.com.br no Safari, toque em Compartilhar e depois em "Adicionar à Tela de Início". O app na App Store chega em breve.', '', null],
+  ];
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <h2 style={{ fontSize: 18 }}>Baixar o app</h2>
+      <p className="muted small" style={{ margin: 0 }}>Instale o Vision PDV em outros aparelhos da loja. Entre com o mesmo e-mail e senha: os produtos e as vendas aparecem sozinhos.</p>
+      <div className="dl-grid">
+        {items.map(([t, d, b, href]) => (
+          <div key={t} className="stat" style={{ gap: 10 }}>
+            <b style={{ fontSize: 17 }}>{t}</b>
+            <span className="muted small" style={{ lineHeight: 1.45 }}>{d}</span>
+            {href && <a className="btn primary" href={href} target="_blank" rel="noreferrer" style={{ marginTop: 'auto' }}>{b}</a>}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
