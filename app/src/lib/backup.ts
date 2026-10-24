@@ -9,6 +9,11 @@ interface DesktopBridge {
   readBackup(name: string): Promise<string>;
   openBackupFolder(): Promise<void>;
   backupFolder(): Promise<string>;
+  // Janela da frente de caixa (versões novas do app de Windows)
+  openPdv?(url?: string): Promise<void>;
+  focusMain?(): Promise<void>;
+  setFullScreen?(on: boolean): Promise<void>;
+  isPdvWindow?: boolean;
 }
 
 declare global {

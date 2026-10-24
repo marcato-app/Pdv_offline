@@ -7,6 +7,10 @@ import { UpdateBanner } from '../../components/UpdateBanner';
 import { SupportFab, useSupportLink } from '../../components/Support';
 import { useAppearance, resolvedAppearance } from '../../lib/appearance';
 import { IS_STORE_APP } from '../../lib/store';
+import { openPdvWindow } from '../../lib/pdvWindow';
+
+// Clique em "Frente de caixa": abre em janela própria quando dá (computador).
+const pdvClick = (e: React.MouseEvent) => { if (!e.ctrlKey && !e.metaKey && openPdvWindow()) e.preventDefault(); };
 
 const LINKS: [string, string][] = [
   ['/pdv', 'Frente de caixa'],
@@ -82,7 +86,7 @@ export function AdminLayout() {
     <div className="admin">
       <nav className="side" aria-label="Menu">
         <div className="brand"><Logo /><span style={{ fontSize: 16, fontWeight: 800 }}>{store.name}</span></div>
-        {LINKS.map(([to, label]) => <NavLink key={to} to={to}>{label}</NavLink>)}
+        {LINKS.map(([to, label]) => <NavLink key={to} to={to} onClick={to === '/pdv' ? pdvClick : undefined}>{label}</NavLink>)}
         <div className="foot" style={{ marginTop: 'auto', padding: '14px 12px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <SyncBadge />
           <span className="muted small">{user?.name}</span>
@@ -121,7 +125,7 @@ export function AdminLayout() {
                 <h3>{title}</h3>
                 <div className="ms-list">
                   {items.map(([to, label, ic]) => (
-                    <NavLink key={to} to={to}><span className="ms-ic"><Icon d={G[ic]} /></span>{label}<span className="ms-chev"><Icon d={G.chev} /></span></NavLink>
+                    <NavLink key={to} to={to} onClick={to === '/pdv' ? pdvClick : undefined}><span className="ms-ic"><Icon d={G[ic]} /></span>{label}<span className="ms-chev"><Icon d={G.chev} /></span></NavLink>
                   ))}
                 </div>
               </section>

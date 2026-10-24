@@ -1,3 +1,5 @@
+import { CategoryArt } from './CategoryArt';
+import type { Product } from '../lib/db';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useApp } from '../lib/app-context';
 import { timeOnly } from '../lib/format';
@@ -50,7 +52,9 @@ export function useAutoFocus<T extends HTMLElement>() {
   return ref;
 }
 
-export function Photo({ src, size = 200, label = 'Sem foto' }: { src?: string; size?: number; label?: string }) {
+/** Foto do produto. Sem foto, mostra a imagem de exemplo do tipo do produto (se o produto for informado). */
+export function Photo({ src, size = 200, label = 'Sem foto', product }: { src?: string; size?: number; label?: string; product?: Partial<Product> | null }) {
+  if (!src && product && (product.segment || product.description)) return <CategoryArt product={product} size={size} />;
   return <div className="photo" style={{ width: size, height: size }}>{src ? <img src={src} alt="" /> : label}</div>;
 }
 

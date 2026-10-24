@@ -190,7 +190,7 @@ export function ProdutoForm() {
         {pendingRow && <span className="chip warn" style={{ padding: 10 }}>Vendido {pendingRow.timesSold}x sem cadastro. Ao salvar, essas vendas passam a contar para este produto. Em "Estoque", informe a quantidade que tem hoje.</span>}
         <div className="row" style={{ alignItems: 'flex-start', gap: 24 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <Photo src={p.photo} size={180} label="Sem foto" />
+            <Photo src={p.photo} size={180} label="Sem foto" product={p} />
             <label className="btn sm" style={{ cursor: 'pointer' }}>
               {p.photo ? 'Trocar foto' : 'Adicionar foto'}
               <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async (e) => { const f = e.target.files?.[0]; if (f) set('photo', await resizeImage(f)); }} />

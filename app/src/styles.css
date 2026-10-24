@@ -391,3 +391,6 @@ table.t tr.click:hover td { background: #faf9fd; }
 .dl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .dl-grid .btn { white-space: normal; }
 @media (max-width: 700px) { .dl-grid { grid-template-columns: 1fr; } }
+.cat-art { border-radius: 18px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; position: relative; overflow: hidden; }
+.cat-art::after { content: ''; position: absolute; inset: 0; background: radial-gradient(120% 90% at 20% 0%, rgba(255, 255, 255, .55), transparent 60%); pointer-events: none; }
+html.vt.dk .cat-art { filter: saturate(.9) brightness(.92); }

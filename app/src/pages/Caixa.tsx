@@ -23,6 +23,7 @@ import { vibrate } from '../lib/haptics';
 import { useSupportLink } from '../components/Support';
 import { loadPayConfig } from '../lib/payments';
 import type { PixKey } from '../lib/pix';
+import { focusMainWindow, isPdvWindow, startPdvFullscreen } from '../lib/pdvWindow';
 
 type ModalKind = null | 'qty' | 'discount' | 'search' | 'cancelItem' | 'cancelSale' | 'customer' | 'sangria' | 'suprimento' | 'pay' | 'done' | 'close' | 'menu' | 'manual' | 'unknown' | 'weight';
 
@@ -84,13 +85,14 @@ export function Caixa() {
   const volumes = round3(active.reduce((s, i) => s + (i.unit === 'UN' ? i.qty : 1), 0));
   const register = useLiveQuery(() => getDevice<string>('register', '01'), [], '01');
   const salesToday = useLiveQuery(() => (session ? db.sales.where('sessionId').equals(session.id).filter((s) => s.status === 'completed').count() : 0), [session?.id], 0);
-  const photoOf = useLiveQuery(async () => {
+  const prodOf = useLiveQuery(async () => {
     const ids = [...new Set(items.map((i) => i.productId))];
     const ps = await db.products.bulkGet(ids);
-    return Object.fromEntries(ps.filter(Boolean).map((p) => [p!.id, p!.photo]));
-  }, [items.length], {} as Record<string, string | undefined>);
+    return Object.fromEntries(ps.filter(Boolean).map((p) => [p!.id, p!]));
+  }, [items.length], {} as Record<string, Product>);
 
   useEffect(() => { currentSession().then(setSession); }, []);
+  useEffect(() => startPdvFullscreen(), []);
   useEffect(() => { const t = setInterval(() => setClock(Date.now()), 15_000); return () => clearInterval(t); }, []);
   useEffect(() => { if (!modal) setTimeout(() => codeRef.current?.focus(), 0); }, [modal, session]);
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(''), 3000); return () => clearTimeout(t); } }, [toast]);
@@ -245,7 +247,7 @@ export function Caixa() {
         ) : (
           <section className="pdv-left">
             <div className="current">
-              <Photo src={current ? photoOf[current.productId] : undefined} size={190} />
+              <Photo src={current ? prodOf[current.productId]?.photo : undefined} size={190} product={current ? prodOf[current.productId] || { description: current.description } : null} />
               <div style={{ flex: '1 1 280px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center' }}>
                 {lastProduct && current?.productId === lastProduct.id && (
                   <div className="row chips" style={{ gap: 6 }}>
@@ -392,7 +394,8 @@ export function Caixa() {
       }} />}
       {modal === 'menu' && (
         <Modal title="Menu" onClose={() => setModal(null)}>
-          {canManage(user) && <button className="btn big" onClick={() => nav('/painel')}>Ir para a gestão</button>}
+          {canManage(user) && <button className="btn big" onClick={() => { setModal(null); if (!focusMainWindow()) nav('/painel'); }}>Ir para a gestão</button>}
+          {isPdvWindow() && <button className="btn big" onClick={() => window.close()}>Fechar esta janela</button>}
           <button className="btn big" onClick={() => { setModal(null); syncNow(); }}>Sincronizar agora</button>
           {support && <a className="btn big" href={support} target="_blank" rel="noreferrer">Falar com o suporte (WhatsApp)</a>}
           <button className="btn big" onClick={async () => { await makeBackup('manual'); setModal(null); setToast('Backup feito'); }}>Fazer backup agora</button>
