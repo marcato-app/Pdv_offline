@@ -23,7 +23,7 @@ export interface CatalogItem {
 
 export async function lookupBarcode(code: string): Promise<CatalogItem | null> {
   const c = code.replace(/\D/g, '');
-  if (c.length < 8 || c.length > 14 || !navigator.onLine) return null;
+  if (c.length < 8 || c.length > 14 || /^2\d{12}$/.test(c) || !navigator.onLine) return null;
   const token = await getDevice<string | null>('token', null);
   if (!token) return null;
   try {
@@ -51,7 +51,7 @@ export async function contribute(products: Partial<Product>[]) {
   const token = await getDevice<string | null>('token', null);
   if (!token || !navigator.onLine) return;
   const items = products
-    .filter((p) => p.barcode && /^\d{8,14}$/.test(p.barcode))
+    .filter((p) => p.barcode && /^\d{8,14}$/.test(p.barcode) && !/^2\d{12}$/.test(p.barcode))
     .map((p) => ({ barcode: p.barcode, description: p.description, brand: p.brand, manufacturer: p.manufacturer, segment: p.segment, department: p.department, category: p.category, subcategory: p.subcategory, family: p.family, basket: p.basket, content: p.content, ncm: p.ncm }));
   for (let i = 0; i < items.length; i += 200) {
     await api('/api/catalog/contribute', { method: 'POST', token, body: JSON.stringify({ items: items.slice(i, i + 200) }) }).catch(() => undefined);

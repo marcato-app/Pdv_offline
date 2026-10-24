@@ -28,6 +28,8 @@ const clean = (v: unknown, max = 160) => (typeof v === 'string' && v.trim() ? v.
 function normalize(x: CatalogItem): CatalogItem | null {
   const barcode = String(x.barcode || '').replace(/\D/g, '');
   if (!CODE_RE.test(barcode)) return null;
+  // Etiqueta de balança (começa com 2, 13 dígitos): cada loja tem a sua, não entra no banco compartilhado.
+  if (/^2\d{12}$/.test(barcode)) return null;
   const out: CatalogItem = { barcode };
   for (const f of FIELDS) out[f] = clean(x[f], f === 'photo' ? 400 : 160);
   if (out.photo && !/^https:\/\//.test(out.photo)) out.photo = null; // só links de imagem, nunca arquivos

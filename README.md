@@ -134,7 +134,7 @@ Tudo é configurado em `/dono` → **Planos e pagamento**:
 
 ## Árvore mercadológica e base de produtos
 
-- 5 níveis: **Segmento › Departamento › Categoria › Subcategoria › Tipo** (`app/src/data/arvore.json`, 1.580 caminhos). O código da categoria não é usado.
+- 5 níveis: **Segmento › Departamento › Categoria › Subcategoria › Tipo** (`app/src/data/arvore.json`, 1.574 caminhos). O código da categoria não é usado.
 - Produtos e banco compartilhado (`catalog`) guardam `segment`, `department`, `category`, `subcategory`, `family`. Banco antigo: rode `worker/migrate-4.sql`.
-- Base pré-cadastrada: 6.965 produtos (código de barras, descritivo, marca, fabricante, conteúdo e os 5 níveis), fonte `vision-base`. Ao bipar ou digitar o código num produto novo, tudo é preenchido sozinho.
+- Base pré-cadastrada: 6.903 produtos (sem o segmento Diversos, que reunia códigos de balança e itens sem classificação) (código de barras, descritivo, marca, fabricante, conteúdo e os 5 níveis), fonte `vision-base`. Ao bipar ou digitar o código num produto novo, tudo é preenchido sozinho.
 - No cadastro, "Árvore mercadológica" abre a busca por palavra ou a navegação nível por nível. Relatórios agrupam por qualquer nível.
