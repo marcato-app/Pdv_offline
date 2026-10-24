@@ -2,6 +2,7 @@
 import { IS_APP } from './store';
 
 const NAME = 'vision-pdv';
+const IN_DESKTOP_APP = typeof navigator !== 'undefined' && navigator.userAgent.includes('VisionPDVApp');
 const bridge = () => window.visionDesktop;
 // Endereço do caixa nesta mesma instalação (site: /pdv; app sem internet: #/pdv).
 const pdvUrl = () => (IS_APP ? location.href.split('#')[0] + '#/pdv' : location.origin + '/pdv');
@@ -14,7 +15,8 @@ export const isPdvWindow = () => !!bridge()?.isPdvWindow || window.name === NAME
 export function openPdvWindow(): boolean {
   const d = bridge();
   if (d?.openPdv) { d.openPdv(pdvUrl()); return true; }
-  if (IS_APP || !bigScreen()) return false;
+  // App de Windows sem a janela própria (instalador antigo): abre o caixa na mesma janela, nunca no navegador.
+  if (IS_APP || IN_DESKTOP_APP || !bigScreen()) return false;
   const w = window.open(pdvUrl(), NAME, `popup,left=0,top=0,width=${screen.availWidth},height=${screen.availHeight}`);
   if (!w) return false; // bloqueador de janelas
   w.focus();

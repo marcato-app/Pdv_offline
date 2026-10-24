@@ -41,7 +41,12 @@ function setup(w) {
     if (input.key.toLowerCase() === 'i' && input.shift) { e.preventDefault(); w.webContents.toggleDevTools(); }
   });
   // Links de outros sites abrem no navegador, não dentro do PDV.
-  w.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
+  w.webContents.setWindowOpenHandler(({ url }) => {
+    // Caixa pedido como janela do próprio sistema: abre a janela do caixa do app, não o navegador.
+    if (url.startsWith(CLOUD) && /\/pdv\/?$|#\/pdv$/.test(url)) { openPdv(url); return { action: 'deny' }; }
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
   w.webContents.on('will-navigate', (e, url) => {
     if (!url.startsWith(CLOUD) && !url.startsWith('file:')) { e.preventDefault(); shell.openExternal(url); }
   });
