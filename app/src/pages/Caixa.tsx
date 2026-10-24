@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useApp } from '../lib/app-context';
 import { db, round2, round3, getDevice, type CashSession, type Product, type SaleItem, type Payment, type PaymentMethod, type Customer, type Sale } from '../lib/db';
-import { findProduct, makeItem, makeManualItem, searchProducts, finalizeSale, currentSession, openSession, addCashMove, sessionSummary, closeSession, customerBalance, DEFAULT_QUICK_ITEMS, type SessionSummary, type QuickItem } from '../lib/pdv';
+import { findProduct, readScaleLabel, makeItem, makeManualItem, searchProducts, finalizeSale, currentSession, openSession, addCashMove, sessionSummary, closeSession, customerBalance, DEFAULT_QUICK_ITEMS, type SessionSummary, type QuickItem } from '../lib/pdv';
 import { useAuthorize, type Action } from '../lib/permissions';
 import { getScaleSettings, readWeight } from '../lib/scale';
 import { getSetting, save, uid } from '../lib/db';
@@ -131,7 +131,17 @@ export function Caixa() {
       const m = c.match(/^(\d+(?:[.,]\d+)?)\*(.+)$/);
       if (m) { qty = parseNum(m[1]); c = m[2]; }
       const found = await findProduct(c);
-      if (!found) { beep(); vibrate('erro'); setUnknownCode(c); setModal('unknown'); return; }
+      if (!found) {
+        // Etiqueta da balança com o valor no código, mas sem produto com esse código interno:
+        // vende pelo valor impresso, sem travar o caixa.
+        const label = await readScaleLabel(c);
+        if (label && label.mode === 'price' && label.value > 0) {
+          addManual(makeManualItem('avulso', `ITEM DA BALANÇA · CÓD ${label.code}`, label.value / 100, 1, c));
+          setToast(`Etiqueta da balança: ${money(label.value / 100)}. Cadastre o código ${label.code} em Produtos (código interno) para aparecer o nome.`);
+          return;
+        }
+        beep(); vibrate('erro'); setUnknownCode(c); setModal('unknown'); return;
+      }
       if (found.qty !== undefined) addProduct(found.product, found.qty, found.total);
       else if (found.product.unit === 'KG' && !m) {
         // Produto por quilo sem etiqueta: pesa na balança do caixa, ou digita o peso.

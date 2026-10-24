@@ -20,6 +20,20 @@ export interface Found {
 
 const stripZeros = (s: string) => s.replace(/^0+/, '');
 
+/** Confere o dígito verificador do EAN-13 (evita aceitar uma leitura errada do leitor). */
+export function ean13Ok(c: string) {
+  if (!/^\d{13}$/.test(c)) return false;
+  const sum = c.slice(0, 12).split('').reduce((s, d, i) => s + Number(d) * (i % 2 ? 3 : 1), 0);
+  return (10 - (sum % 10)) % 10 === Number(c[12]);
+}
+
+/** Etiqueta da balança (2 + código + valor + dígito). Devolve o código do produto e o valor ou o peso. */
+export async function readScaleLabel(c: string) {
+  const scale = await getSetting<ScaleConfig>('scale', DEFAULT_SCALE);
+  if (!scale.enabled || !/^2\d{12}$/.test(c) || !ean13Ok(c)) return null;
+  return { code: c.slice(1, 1 + scale.codeLength), value: Number(c.slice(1 + scale.codeLength, 12)), mode: scale.mode };
+}
+
 /** Procura por código de barras, código interno ou etiqueta de balança (EAN-13 começando com 2). */
 export async function findProduct(code: string): Promise<Found | null> {
   const c = code.trim();
@@ -31,7 +45,7 @@ export async function findProduct(code: string): Promise<Found | null> {
   if (byInternal) return { product: byInternal };
 
   const scale = await getSetting<ScaleConfig>('scale', DEFAULT_SCALE);
-  if (scale.enabled && /^2\d{12}$/.test(c)) {
+  if (scale.enabled && /^2\d{12}$/.test(c) && ean13Ok(c)) {
     const pcode = c.slice(1, 1 + scale.codeLength);
     const value = Number(c.slice(1 + scale.codeLength, 12));
     const candidates = await db.products.filter((p) => !p.deleted && !!p.active && !!p.internalCode && stripZeros(p.internalCode) === stripZeros(pcode)).toArray();
