@@ -122,7 +122,8 @@ html.vt .current, html.vt .idle { background: var(--card); border: 0; box-shadow
 html.vt .current h2 { letter-spacing: -.025em; }
 html.vt .idle h1 { color: var(--text); letter-spacing: -.04em; font-weight: 750; }
 html.vt .total-box { background: #0A0A0B; color: #fff; border-radius: 20px; }
-html.vt.dk .total-box { background: var(--card); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+html.vt.dk .total-box { background: #F5F5F6; color: #0B0B0E; }
+html.vt .pdv-list, html.vt .pdv-keys { background: var(--card); border: 0; box-shadow: var(--elev); }
 html.vt .total-box .big { letter-spacing: -.035em; font-weight: 750; }
 html.vt .pay-opt { background: var(--card); border: 1px solid var(--line); color: var(--text); font-weight: 600; }
 html.vt .pay-opt b { background: var(--field); color: var(--text); }

@@ -276,8 +276,8 @@ export function Caixa() {
             </div>
           </section>
         ) : (
-          <section className="pdv-left">
-            <div className="current">
+          <>
+          <div className="current pdv-cur">
               <Photo src={current ? prodOf[current.productId]?.photo : undefined} size={190} product={current ? prodOf[current.productId] || { description: current.description } : null} />
               <div style={{ flex: '1 1 280px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center' }}>
                 {lastProduct && current?.productId === lastProduct.id && (
@@ -288,47 +288,52 @@ export function Caixa() {
                 )}
                 <h2>{current?.description}</h2>
                 <span className="muted">{[lastProduct?.id === current?.productId && lastProduct?.brand, current?.barcode].filter(Boolean).join(' · ')}</span>
-                {current && (
-                  <div className="row" style={{ gap: '4px 26px', alignItems: 'baseline' }}>
-                    <span className="unit-line" style={{ fontSize: 20, fontWeight: 600 }}>{qtyFmt(current.qty)} {current.unit} × {money(current.unitPrice)}</span>
-                    <span className="big-price" style={{ fontSize: 40, fontWeight: 800, color: 'var(--primary)' }}>{money(current.total)}</span>
-                  </div>
-                )}
               </div>
+              {current && (
+                <div className="cur-price">
+                  <span className="unit-line">{qtyFmt(current.qty)} {current.unit} × {money(current.unitPrice)}</span>
+                  <span className="big-price">{money(current.total)}</span>
+                </div>
+              )}
             </div>
-            <div className="row">
+          <section className="pdv-left">
+            <div className="pdv-list">
+              <div className="row" style={{ padding: '14px 14px 4px' }}>
               <div style={{ flex: '1 1 300px' }}><CodeInput refEl={codeRef} code={code} setCode={setCode} onEnter={onCodeEnter} onCamera={() => setCam(true)} nextQty={nextQty} /></div>
             </div>
             <div className="table-wrap items-list" ref={itemsRef} tabIndex={-1} onKeyDown={onItemsKey}>
               <table className="t" style={{ minWidth: 520 }}>
-                <thead><tr><th>#</th><th>Produto</th><th>Qtd</th><th>Unit.</th><th className="right">Total</th></tr></thead>
+                <thead><tr><th>#</th><th className="col-code">Cód. produto</th><th>Descrição</th><th className="right">Qtde.</th><th className="right">Vlr. unit.</th><th className="right">Vlr. total</th></tr></thead>
                 <tbody>
                   {items.map((it, i) => (
                     <tr key={i} className={(i === selected ? 'sel ' : '') + (it.canceled ? 'cut' : '') + ' click'} onClick={() => setSelected(i)}>
                       <td>{i + 1}</td>
+                      <td className="col-code mono">{it.barcode}</td>
                       <td>{it.description}</td>
-                      <td>{qtyFmt(it.qty)} {it.unit}<span className="only-m"> × {dec2(it.unitPrice)}</span></td>
-                      <td>{dec2(it.unitPrice)}</td>
+                      <td className="right">{qtyFmt(it.qty)} {it.unit}<span className="only-m"> × {dec2(it.unitPrice)}</span></td>
+                      <td className="right">{dec2(it.unitPrice)}</td>
                       <td className="right">{dec2(it.total)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            </div>
           </section>
+          </>
         )}
 
         <aside className="pdv-right">
           <div className="pdv-paybar">
           <div className="total-box">
-            <div className="spread sub" style={{ fontSize: 15, color: '#e4dcfa' }}><span>{active.length} {active.length === 1 ? 'item' : 'itens'} · {qtyFmt(volumes)} {volumes === 1 ? 'volume' : 'volumes'}</span><span>{money(subtotal)}</span></div>
-            <div className="spread sub" style={{ fontSize: 15, color: '#e4dcfa' }}><span>Desconto (F4)</span><span>{money(discount)}</span></div>
+            <div className="spread sub" style={{ fontSize: 15, opacity: .65 }}><span>{active.length} {active.length === 1 ? 'item' : 'itens'} · {qtyFmt(volumes)} {volumes === 1 ? 'volume' : 'volumes'}</span><span>{money(subtotal)}</span></div>
+            <div className="spread sub" style={{ fontSize: 15, opacity: .65 }}><span>Desconto (F4)</span><span>{money(discount)}</span></div>
             <div className="lbl" style={{ fontSize: 14, fontWeight: 700, marginTop: 6 }}>TOTAL A PAGAR</div>
             <div className="big">{money(total)}</div>
           </div>
           <button className="btn primary big pay-btn" style={{ height: 64 }} disabled={!active.length} onClick={payBtn()}>Pagamento (Enter)</button>
           </div>
-          <div className="card pdv-extra" style={{ padding: 16, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14 }}>
+          <div className="card pdv-extra" style={{ padding: 16, borderRadius: 16, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '2px 10px', fontSize: 14 }}>
             <span className="muted">Cliente (F6)</span>
             <b>{customer ? customer.name : 'Consumidor final'}</b>
             {cpf && <span>CPF {formatCpf(cpf)}</span>}
@@ -341,6 +346,12 @@ export function Caixa() {
               {lastSale && <button className="btn sm ghost" onClick={async () => { if (await authorize('reimprimir')) printHtml(await receiptHtml(lastSale)); }}>Reimprimir último cupom</button>}
             </div>
           )}
+          <div className="card pdv-extra pdv-keys">
+            <span className="lbl">Teclas de atalho</span>
+            <div className="kg">
+              {[...shortcuts, ['Ctrl+F6', 'Cancelar venda', () => { if (active.length) ask('cancelarVenda', 'cancelSale')(); }] as [string, string, () => void]].map(([k0, l0, fn]) => [k0 === 'Ctrl+F1' ? '1' : k0, k0 === 'Ctrl+F1' ? 'Valor manual' : l0, fn] as const).map(([k, l, fn]) => <button key={k} type="button" onMouseDown={(e) => e.preventDefault()} onClick={fn}><b>{k}</b>{l}</button>)}
+            </div>
+          </div>
           {!!active.length && <button className="btn ghost pdv-extra" onClick={ask('cancelarVenda', 'cancelSale')}>Cancelar venda (Ctrl+F6)</button>}
         </aside>
       </div>
@@ -370,8 +381,15 @@ export function Caixa() {
         addProduct(prod, qty);
         setModal(null);
       }} />}
-      {modal === 'weight' && weighing && <NumberModal title={`Peso · ${weighing.description}`} label="Peso em kg (ex.: 0,850)" initial="" onClose={() => setModal(null)} onOk={(v) => { if (v > 0) addProduct(weighing, round3(v)); setModal(null); }} />}
-      {modal === 'qty' && <NumberModal title="Quantidade do próximo item" label="Quantidade" initial={String(nextQty)} onClose={() => setModal(null)} onOk={(v) => { if (v > 0) setNextQty(v); setModal(null); }} />}
+      {modal === 'weight' && weighing && <NumberModal title={`Peso · ${weighing.description}`} label="Peso em kg (ex.: 0,850)" initial="" onClose={() => setModal(null)} onOk={(v) => {
+        // Código de barras bipado sem querer no campo do peso: não aceita.
+        if (v > 500) { beep(); setToast('Peso inválido. Digite o peso em kg (ex.: 0,850).'); return; }
+        if (v > 0) addProduct(weighing, round3(v)); setModal(null);
+      }} />}
+      {modal === 'qty' && <NumberModal title="Quantidade do próximo item" label="Quantidade" initial={String(nextQty)} onClose={() => setModal(null)} onOk={(v) => {
+        if (v > 9999) { beep(); setToast('Quantidade inválida.'); return; }
+        if (v > 0) setNextQty(v); setModal(null);
+      }} />}
       {modal === 'discount' && <DiscountModal subtotal={subtotal} current={discount} onClose={() => setModal(null)} onOk={(v) => { setDiscount(v); setModal(null); }} />}
       {modal === 'search' && <SearchModal onClose={() => setModal(null)} onPick={(p) => { addProduct(p, nextQty); setNextQty(1); setModal(null); }} />}
       {modal === 'cancelItem' && <NumberModal title="Cancelar item" label="Número do item" initial={String(selected + 1)} onClose={() => setModal(null)} onOk={(v) => {

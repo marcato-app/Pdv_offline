@@ -269,11 +269,19 @@ table.t tr.click:hover td { background: #faf9fd; }
   .items-list table.t td { padding: 0; display: block; text-align: left; }
   .items-list table.t td::before { display: none; }
   .items-list table.t td:nth-child(1) { grid-area: n; color: var(--muted); font-size: 13px; }
-  .items-list table.t td:nth-child(2) { grid-area: p; font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .items-list table.t td:nth-child(3) { grid-area: q; font-size: 13px; color: var(--muted); font-weight: 500; }
-  .items-list table.t td:nth-child(4) { display: none; }
-  .items-list table.t td:nth-child(5) { grid-area: t; font-weight: 800; font-size: 16px; text-align: right; }
-  .items-list table.t tr.cut td:nth-child(2) { text-decoration: line-through; }
+  .items-list table.t td.col-code { display: none; }
+  .items-list table.t td:nth-child(3) { grid-area: p; font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .items-list table.t td:nth-child(4) { grid-area: q; font-size: 13px; color: var(--muted); font-weight: 500; text-align: left; }
+  .items-list table.t td:nth-child(5) { display: none; }
+  .items-list table.t td:nth-child(6) { grid-area: t; font-weight: 800; font-size: 16px; text-align: right; }
+  .items-list table.t tr.cut td:nth-child(3) { text-decoration: line-through; }
+  .pdv-cur { flex-wrap: nowrap; }
+  .current .cat-art { width: 76px !important; height: 76px !important; border-radius: 12px; }
+  .current .cat-art svg { width: 36px; height: 36px; }
+  .pdv-cur .cur-price { padding-right: 0; }
+  .pdv-cur .cur-price { margin-left: auto; text-align: right; }
+  .pdv-list { background: transparent !important; box-shadow: none !important; border: 0 !important; }
+  .pdv-list > .row { padding: 0 !important; margin-bottom: 10px; }
   .pdv-foot button.k-F9 { display: none; }
 }
 
@@ -397,3 +405,44 @@ html.vt.dk .cat-art { filter: saturate(.9) brightness(.92); }
 .items-list:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
 /* Botão marcado pelo teclado (setas) nas janelas do caixa */
 .modal button:focus-visible, .modal a.btn:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary) 18%, transparent); }
+
+/* Caixa no computador: produto na largura toda, lista grande e teclas de atalho ao lado (como o sistema antigo). */
+.pdv-cur { flex: 1 1 100%; align-items: center; }
+.cur-price { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin-left: auto; padding-right: 8px; }
+.cur-price .unit-line { font-size: 20px; font-weight: 600; white-space: nowrap; }
+.cur-price .big-price { font-size: 50px; font-weight: 900; color: var(--primary); letter-spacing: -.02em; line-height: 1.05; white-space: nowrap; }
+.pdv-list { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #fff; border: 1px solid var(--line); border-radius: 20px; overflow: hidden; }
+.pdv-list .items-list { border: 0; border-radius: 0; }
+.pdv-list .items-list table.t th { text-transform: uppercase; font-size: 11px; letter-spacing: .08em; }
+.pdv-list td.col-code { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.pdv-list tr.sel td.col-code { color: inherit; }
+.pdv-keys { padding: 12px 16px; border-radius: 18px; display: flex; flex-direction: column; gap: 8px; }
+.pdv-keys .lbl { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.pdv-keys .kg { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.pdv-keys .kg button { border: 0; background: none; color: inherit; font: inherit; font-size: 13px; display: flex; align-items: center; gap: 8px; padding: 1px 0; line-height: 20px; cursor: pointer; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pdv-keys .kg b { min-width: 38px; text-align: center; font-size: 11px; padding: 3px 0; border-radius: 6px; background: var(--field, #F1F1F3); flex: none; }
+.pdv-right { overflow: auto; }
+@media (min-width: 701px) { .pdv-foot { display: none; } }
+@media (min-width: 701px) {
+  .pdv { height: 100vh; min-height: 0; overflow: hidden; }
+  .pdv-body { display: grid; grid-template-columns: minmax(0, 1fr) 400px; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+  .pdv-body:has(.pdv-cur) { grid-template-rows: auto minmax(0, 1fr); }
+  .pdv-cur { grid-column: 1 / -1; padding: 10px 22px 10px 10px; }
+  .pdv-cur .photo, .pdv-cur .cat-art { width: 116px !important; height: 116px !important; }
+  .pdv-cur h2 { font-size: 34px; }
+  .pdv-right { gap: 10px; }
+  .pdv-right .total-box { padding: 14px 18px; gap: 4px; }
+  .pdv-right .total-box .big { font-size: 46px; }
+  .pdv-right .pdv-extra.card { padding: 10px 16px !important; }
+  .pdv-right .pay-btn { height: 58px !important; flex: none; }
+  .pdv-list th.right { text-align: right; }
+  .pdv-right > .btn.ghost.pdv-extra { display: none; }
+  .pdv-keys .kg button { min-height: 0; height: 24px; }
+  .pdv-left { min-height: 0; }
+  .pdv-right { min-height: 0; }
+}
+@media (min-width: 701px) and (max-height: 720px) {
+  .pdv-cur .photo, .pdv-cur .cat-art { width: 110px !important; height: 110px !important; }
+  .pdv-keys .kg button { font-size: 12px; padding: 1px 0; }
+}
+.pdv-keys .kg b { min-width: 44px; }
