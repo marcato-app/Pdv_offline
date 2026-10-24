@@ -8,9 +8,9 @@ const DAY = 86_400_000;
 type RangeKey = 'hoje' | 'ontem' | '7' | '30' | 'mes' | 'mesPassado' | 'custom';
 const RANGES: Record<RangeKey, string> = { hoje: 'Hoje', ontem: 'Ontem', '7': '7 dias', '30': '30 dias', mes: 'Este mês', mesPassado: 'Mês passado', custom: 'Escolher datas' };
 
-type GroupKey = 'produto' | 'categoria' | 'subcategoria' | 'marca' | 'fabricante' | 'cesta' | 'operador' | 'pagamento' | 'hora' | 'semana' | 'dia';
+type GroupKey = 'produto' | 'segmento' | 'departamento' | 'categoria' | 'subcategoria' | 'tipo' | 'marca' | 'fabricante' | 'cesta' | 'operador' | 'pagamento' | 'hora' | 'semana' | 'dia';
 const GROUPS: Record<GroupKey, string> = {
-  produto: 'Produto', categoria: 'Categoria', subcategoria: 'Subcategoria', marca: 'Marca', fabricante: 'Fabricante', cesta: 'Cesta',
+  produto: 'Produto', segmento: 'Segmento', departamento: 'Departamento', categoria: 'Categoria', subcategoria: 'Subcategoria', tipo: 'Tipo', marca: 'Marca', fabricante: 'Fabricante', cesta: 'Cesta',
   operador: 'Operador', pagamento: 'Forma de pagamento', hora: 'Hora do dia', semana: 'Dia da semana', dia: 'Dia',
 };
 const WEEK = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -37,7 +37,7 @@ interface Row { key: string; qty: number; total: number; cost: number; count: nu
 function attr(p: Product | undefined, g: GroupKey, kind?: string) {
   if (kind === 'avulso') return 'Valores manuais';
   if (kind === 'naocadastrado') return 'Não cadastrados';
-  const v = { categoria: p?.category, subcategoria: p?.subcategory, marca: p?.brand, fabricante: p?.manufacturer, cesta: p?.basket }[g as 'categoria'];
+  const v = { segmento: p?.segment, departamento: p?.department, categoria: p?.category, subcategoria: p?.subcategory, tipo: p?.family, marca: p?.brand, fabricante: p?.manufacturer, cesta: p?.basket }[g as 'categoria'];
   return v || 'Sem informação';
 }
 
@@ -80,7 +80,7 @@ export function Relatorios() {
         items += i.unit === 'UN' ? i.qty : 1;
         let key: string | null = null;
         if (group === 'produto') key = i.kind === 'avulso' ? `${i.description} (manual)` : i.description;
-        else if (['categoria', 'subcategoria', 'marca', 'fabricante', 'cesta'].includes(group)) key = attr(p, group, i.kind);
+        else if (['segmento', 'departamento', 'categoria', 'subcategoria', 'tipo', 'marca', 'fabricante', 'cesta'].includes(group)) key = attr(p, group, i.kind);
         if (key) add(key, i.qty, i.total, c);
       }
       if (group === 'operador') add(s.operatorName, s.items.filter((i) => !i.canceled).length, s.total, s.items.reduce((a, i) => a + (i.canceled ? 0 : (i.cost ?? 0) * i.qty), 0), 1);

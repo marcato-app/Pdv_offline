@@ -239,7 +239,7 @@ export function Caixa() {
               <div style={{ flex: '1 1 280px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center' }}>
                 {lastProduct && current?.productId === lastProduct.id && (
                   <div className="row chips" style={{ gap: 6 }}>
-                    {lastProduct.category && <span className="chip">{lastProduct.category}{lastProduct.subcategory ? ' › ' + lastProduct.subcategory : ''}</span>}
+                    {(lastProduct.subcategory || lastProduct.category) && <span className="chip">{lastProduct.subcategory || lastProduct.category}{lastProduct.family ? ' › ' + lastProduct.family : ''}</span>}
                     {lastProduct.basket && <span className="chip ok">{lastProduct.basket}</span>}
                   </div>
                 )}
@@ -321,7 +321,7 @@ export function Caixa() {
         // Cadastro relâmpago com os dados do banco de produtos.
         const prod = await save<Product>('products', {
           id: uid(), barcode: unknownCode, description: it.description || 'PRODUTO', brand: it.brand || undefined, manufacturer: it.manufacturer || undefined,
-          category: it.category || undefined, subcategory: it.subcategory || undefined, basket: it.basket || undefined, content: it.content || undefined,
+          segment: it.segment || undefined, department: it.department || undefined, category: it.category || undefined, subcategory: it.subcategory || undefined, family: it.family || undefined, basket: it.basket || undefined, content: it.content || undefined,
           ncm: it.ncm || undefined, photo, unit: 'UN', cost: 0, price, minStock: 0, active: 1,
         });
         addProduct(prod, qty);

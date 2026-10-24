@@ -178,7 +178,7 @@ function CatalogUpload({ master }: { master: string }) {
   const send = async () => {
     const items = rows.map((r) => ({
       barcode: get(r, 'barcode').replace(/\.0+$/, ''), description: get(r, 'description'), brand: get(r, 'brand'), manufacturer: get(r, 'manufacturer'),
-      basket: get(r, 'basket'), category: get(r, 'category'), subcategory: get(r, 'subcategory'), content: get(r, 'content'), ncm: get(r, 'ncm'),
+      basket: get(r, 'basket'), segment: get(r, 'segment'), department: get(r, 'department'), category: get(r, 'category'), subcategory: get(r, 'subcategory'), family: get(r, 'family'), content: get(r, 'content'), ncm: get(r, 'ncm'),
     })).filter((x) => x.barcode && x.description);
     let done = 0;
     for (let i = 0; i < items.length; i += 1000) {

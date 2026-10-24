@@ -14,9 +14,13 @@ export interface Product extends Synced {
   description: string;
   brand?: string;
   manufacturer?: string;
-  basket?: string; // cesta
+  basket?: string; // cesta (antigo)
+  // Árvore mercadológica: Segmento › Departamento › Categoria › Subcategoria › Tipo
+  segment?: string;
+  department?: string;
   category?: string;
   subcategory?: string;
+  family?: string;
   content?: string; // conteúdo (ex.: 1 kg)
   unit: 'UN' | 'KG';
   cost: number;

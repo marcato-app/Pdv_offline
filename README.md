@@ -131,3 +131,10 @@ Tudo é configurado em `/dono` → **Planos e pagamento**:
 - **Build**: workflow `.github/workflows/lojas.yml` (manual ou `[gerar-lojas]` no commit).
   - iPhone: Secrets `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (conteúdo do .p8) e `APPLE_TEAM_ID` → gera e envia para o TestFlight. Sem eles, só confere se compila.
   - Android: Secrets `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` → `.aab` assinado nos artefatos da execução.
+
+## Árvore mercadológica e base de produtos
+
+- 5 níveis: **Segmento › Departamento › Categoria › Subcategoria › Tipo** (`app/src/data/arvore.json`, 1.580 caminhos). O código da categoria não é usado.
+- Produtos e banco compartilhado (`catalog`) guardam `segment`, `department`, `category`, `subcategory`, `family`. Banco antigo: rode `worker/migrate-4.sql`.
+- Base pré-cadastrada: 6.965 produtos (código de barras, descritivo, marca, fabricante, conteúdo e os 5 níveis), fonte `vision-base`. Ao bipar ou digitar o código num produto novo, tudo é preenchido sozinho.
+- No cadastro, "Árvore mercadológica" abre a busca por palavra ou a navegação nível por nível. Relatórios agrupam por qualquer nível.

@@ -6,7 +6,7 @@ import { addStock } from '../../lib/pdv';
 import { parseNum } from '../../lib/format';
 import { contribute } from '../../lib/catalog';
 
-export type FieldKey = 'barcode' | 'description' | 'brand' | 'manufacturer' | 'basket' | 'category' | 'subcategory' | 'content' | 'price' | 'cost' | 'stock' | 'unit' | 'internalCode' | 'ncm';
+export type FieldKey = 'barcode' | 'description' | 'brand' | 'manufacturer' | 'basket' | 'segment' | 'department' | 'category' | 'subcategory' | 'family' | 'content' | 'price' | 'cost' | 'stock' | 'unit' | 'internalCode' | 'ncm';
 
 export const FIELDS: { key: FieldKey; label: string; guess: string[] }[] = [
   { key: 'barcode', label: 'Código de barras', guess: ['codigodebarra', 'codigodebarras', 'ean', 'gtin', 'codbarras', 'barcode', 'codigo'] },
@@ -14,8 +14,11 @@ export const FIELDS: { key: FieldKey; label: string; guess: string[] }[] = [
   { key: 'brand', label: 'Marca', guess: ['marca', 'brand'] },
   { key: 'manufacturer', label: 'Fabricante', guess: ['fabricante', 'manufacturer'] },
   { key: 'basket', label: 'Cesta', guess: ['cesta'] },
-  { key: 'category', label: 'Categoria', guess: ['categoria', 'category', 'grupo', 'departamento'] },
-  { key: 'subcategory', label: 'Subcategoria', guess: ['subcategoria', 'subgrupo'] },
+  { key: 'segment', label: 'Segmento', guess: ['segmento', 'segment'] },
+  { key: 'department', label: 'Departamento (nível 1)', guess: ['departamento', 'nivel1', 'department'] },
+  { key: 'category', label: 'Categoria (nível 2)', guess: ['categoria', 'nivel2', 'category', 'grupo'] },
+  { key: 'subcategory', label: 'Subcategoria (nível 3)', guess: ['subcategoria', 'nivel3', 'subgrupo'] },
+  { key: 'family', label: 'Tipo (nível 4)', guess: ['tipo', 'nivel4', 'familia'] },
   { key: 'content', label: 'Conteúdo', guess: ['contenido', 'conteudo', 'content', 'volume', 'peso'] },
   { key: 'price', label: 'Preço de venda', guess: ['precovenda', 'preco', 'venda', 'valor', 'price'] },
   { key: 'cost', label: 'Preço de custo', guess: ['custo', 'precocusto', 'cost'] },
@@ -97,7 +100,7 @@ export function Importar() {
           if (existing && !updateExisting) { skipped++; continue; }
           const unitRaw = get(r, 'unit').toUpperCase();
           const patch: Partial<Product> = { barcode, description };
-          for (const k of ['brand', 'manufacturer', 'basket', 'category', 'subcategory', 'content', 'internalCode', 'ncm'] as const) {
+          for (const k of ['brand', 'manufacturer', 'basket', 'segment', 'department', 'category', 'subcategory', 'family', 'content', 'internalCode', 'ncm'] as const) {
             const v = get(r, k);
             if (v) patch[k] = v;
           }

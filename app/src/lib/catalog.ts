@@ -9,8 +9,11 @@ export interface CatalogItem {
   description?: string | null;
   brand?: string | null;
   manufacturer?: string | null;
+  segment?: string | null;
+  department?: string | null;
   category?: string | null;
   subcategory?: string | null;
+  family?: string | null;
   basket?: string | null;
   content?: string | null;
   ncm?: string | null;
@@ -49,7 +52,7 @@ export async function contribute(products: Partial<Product>[]) {
   if (!token || !navigator.onLine) return;
   const items = products
     .filter((p) => p.barcode && /^\d{8,14}$/.test(p.barcode))
-    .map((p) => ({ barcode: p.barcode, description: p.description, brand: p.brand, manufacturer: p.manufacturer, category: p.category, subcategory: p.subcategory, basket: p.basket, content: p.content, ncm: p.ncm }));
+    .map((p) => ({ barcode: p.barcode, description: p.description, brand: p.brand, manufacturer: p.manufacturer, segment: p.segment, department: p.department, category: p.category, subcategory: p.subcategory, family: p.family, basket: p.basket, content: p.content, ncm: p.ncm }));
   for (let i = 0; i < items.length; i += 200) {
     await api('/api/catalog/contribute', { method: 'POST', token, body: JSON.stringify({ items: items.slice(i, i + 200) }) }).catch(() => undefined);
   }

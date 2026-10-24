@@ -8,6 +8,8 @@ import { money, parseNum, dec2, qtyFmt } from '../../lib/format';
 import { resizeImage } from '../../lib/theme';
 import { Photo } from '../../components/ui';
 import { CameraButton } from '../../components/CameraScan';
+import { TreePicker } from '../../components/TreePicker';
+import { pathOf } from '../../lib/arvore';
 
 export function Produtos() {
   const nav = useNavigate();
@@ -97,7 +99,7 @@ export function ProdutoForm() {
     const photo = !p.photo && it.photo ? await photoToDataUrl(it.photo) : undefined;
     setP((o) => {
       const n = { ...o };
-      for (const k of ['description', 'brand', 'manufacturer', 'category', 'subcategory', 'basket', 'content', 'ncm'] as const) {
+      for (const k of ['description', 'brand', 'manufacturer', 'segment', 'department', 'category', 'subcategory', 'family', 'basket', 'content', 'ncm'] as const) {
         if (!n[k] && it[k]) n[k] = it[k] as string;
       }
       if (photo && !n.photo) n.photo = photo;
@@ -213,9 +215,7 @@ export function ProdutoForm() {
               {F("manufacturer", "Fabricante", cats?.manufacturer)}
               {F("supplier", "Fornecedor (de quem compra)", cats?.supplier)}
               {F("content", "Conteúdo (ex.: 1 kg)")}
-              {F("category", "Categoria", cats?.category)}
-              {F("subcategory", "Subcategoria", cats?.subcategory)}
-              {F("basket", "Cesta", cats?.basket)}
+              <TreePicker value={pathOf(p)} onChange={(v) => setP((o) => ({ ...o, segment: v[0] || undefined, department: v[1] || undefined, category: v[2] || undefined, subcategory: v[3] || undefined, family: v[4] || undefined }))} />
               <div className="field"><label htmlFor="un">Vendido por</label>
                 <select id="un" value={p.unit} onChange={(e) => set('unit', e.target.value)}><option value="UN">Unidade</option><option value="KG">Quilo (balança)</option></select>
               </div>

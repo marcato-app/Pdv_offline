@@ -9,8 +9,11 @@ export interface CatalogItem {
   description?: string | null;
   brand?: string | null;
   manufacturer?: string | null;
+  segment?: string | null;
+  department?: string | null;
   category?: string | null;
   subcategory?: string | null;
+  family?: string | null;
   basket?: string | null;
   content?: string | null;
   ncm?: string | null;
@@ -18,7 +21,7 @@ export interface CatalogItem {
   source?: string | null;
 }
 
-const FIELDS = ['description', 'brand', 'manufacturer', 'category', 'subcategory', 'basket', 'content', 'ncm', 'photo'] as const;
+const FIELDS = ['description', 'brand', 'manufacturer', 'segment', 'department', 'category', 'subcategory', 'family', 'basket', 'content', 'ncm', 'photo'] as const;
 const CODE_RE = /^\d{8,14}$/;
 const clean = (v: unknown, max = 160) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
 
@@ -36,7 +39,7 @@ async function upsert(env: Env, items: CatalogItem[], source: string, overwrite:
   const set = FIELDS.map((f) => (overwrite ? `${f} = COALESCE(excluded.${f}, catalog.${f})` : `${f} = COALESCE(catalog.${f}, excluded.${f})`)).join(', ');
   const stmt = env.DB.prepare(
     `INSERT INTO catalog (barcode, ${FIELDS.join(', ')}, source, uses, updated_at)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 1, ?12)
+     VALUES (?1, ${FIELDS.map((_, i) => `?${i + 2}`).join(', ')}, ?${FIELDS.length + 2}, 1, ?${FIELDS.length + 3})
      ON CONFLICT (barcode) DO UPDATE SET ${set}, uses = catalog.uses + 1, updated_at = excluded.updated_at`,
   );
   const now = Date.now();
