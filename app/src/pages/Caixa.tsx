@@ -136,9 +136,9 @@ export function Caixa() {
       let qty = qtyRef.current;
       const m = c.match(/^(\d+(?:[.,]\d+)?)\*(.+)$/);
       if (m) { qty = parseNum(m[1]); c = m[2]; }
+      // Como no sistema antigo: código 1 sempre lança um valor manual (mesmo que algum produto use esse código).
+      if (c === '1') { ask('valorManual', 'manual')(); return; }
       const found = await findProduct(c);
-      // Como no sistema antigo: código 1 lança um valor manual (se nenhum produto usar esse código).
-      if (!found && c === '1') { ask('valorManual', 'manual')(); return; }
       if (!found) {
         // Etiqueta da balança com o valor no código, mas sem produto com esse código interno:
         // vende pelo valor impresso, sem travar o caixa.
