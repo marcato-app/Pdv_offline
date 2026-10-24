@@ -395,3 +395,5 @@ table.t tr.click:hover td { background: #faf9fd; }
 .cat-art::after { content: ''; position: absolute; inset: 0; background: radial-gradient(120% 90% at 20% 0%, rgba(255, 255, 255, .55), transparent 60%); pointer-events: none; }
 html.vt.dk .cat-art { filter: saturate(.9) brightness(.92); }
 .items-list:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* Botão marcado pelo teclado (setas) nas janelas do caixa */
+.modal button:focus-visible, .modal a.btn:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary) 18%, transparent); }

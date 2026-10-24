@@ -691,7 +691,9 @@ function PayModal({ total, customer, initial, onClose, onPaid }: { total: number
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (step !== 'method' || external || e.defaultPrevented) return; // defaultPrevented: o Enter que abriu esta janela
+      if (step !== 'method' || external || e.defaultPrevented) return;
+      // Botão marcado pelas setas: o Enter aperta esse botão (o navegador faz isso sozinho).
+      if (e.key === 'Enter' && (e.target as HTMLElement)?.tagName === 'BUTTON') return; // defaultPrevented: o Enter que abriu esta janela
       const m = METHODS.find((x) => x.key === e.key);
       if (m) { e.preventDefault(); choose(m.method); }
       if (e.key === 'Enter') { e.preventDefault(); choose(method); }
