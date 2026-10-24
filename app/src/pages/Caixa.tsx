@@ -137,6 +137,8 @@ export function Caixa() {
       const m = c.match(/^(\d+(?:[.,]\d+)?)\*(.+)$/);
       if (m) { qty = parseNum(m[1]); c = m[2]; }
       const found = await findProduct(c);
+      // Como no sistema antigo: código 1 lança um valor manual (se nenhum produto usar esse código).
+      if (!found && c === '1') { ask('valorManual', 'manual')(); return; }
       if (!found) {
         // Etiqueta da balança com o valor no código, mas sem produto com esse código interno:
         // vende pelo valor impresso, sem travar o caixa.
@@ -240,7 +242,7 @@ export function Caixa() {
     ['F10', 'Movimento caixa', () => setModal('mov')],
     ['F11', 'Crediário', payBtn('crediario')],
     ['F12', 'Configurações', () => setModal('menu')],
-    ['Ctrl+F1', 'Valor manual', ask('valorManual', 'manual')],
+    ['Ctrl+F1', 'Valor manual (ou 1 + Enter)', ask('valorManual', 'manual')],
     ['Ctrl+F5', 'PIX', payBtn('pix')],
   ];
 
