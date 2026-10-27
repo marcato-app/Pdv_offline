@@ -13,9 +13,20 @@ function addScript(src: string) {
   document.head.appendChild(s);
 }
 
-/** Carrega os pixels configurados no painel do dono e marca a visita. */
+// Consentimento de cookies (LGPD): os pixels só carregam depois que a pessoa aceita.
+const KEY = 'vision-cookies';
+export function cookieChoice(): 'sim' | 'nao' | null {
+  try { const v = localStorage.getItem(KEY); return v === 'sim' || v === 'nao' ? v : null; } catch { return null; }
+}
+export function setCookieChoice(v: 'sim' | 'nao' | null) {
+  try { if (v) localStorage.setItem(KEY, v); else localStorage.removeItem(KEY); } catch { /* ok */ }
+  if (v === 'sim') initTracking();
+  window.dispatchEvent(new Event('vision-cookies'));
+}
+
+/** Carrega os pixels configurados no painel do dono e marca a visita (só com o aceite dos cookies). */
 export function initTracking(): Promise<PlatformInfo | null> {
-  if (IS_NATIVE || !location.protocol.startsWith('http')) return Promise.resolve(null);
+  if (IS_NATIVE || !location.protocol.startsWith('http') || cookieChoice() !== 'sim') return Promise.resolve(null);
   ready ??= getPlatform().then((p) => {
     if (p.metaPixelId && !w.fbq) {
       const f = function (...a: unknown[]) { f.callMethod ? f.callMethod(...a) : f.queue!.push(a); } as NonNullable<W['fbq']>;

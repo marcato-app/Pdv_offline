@@ -8,6 +8,7 @@ import { paymentsApi, secretsApi } from './payments';
 import { whatsappApi, sendDailySummaries } from './whatsapp';
 import { billingApi } from './billing';
 import { passwordApi } from './password';
+import { blocked, addFail, clearFails, clientIp, TOO_MANY, withSecurity, saveCspReport } from './security';
 import { sendExpiryNotices, sendMail, sendPlatformWa, canMail, canWa } from './notify';
 import { getPlatform } from './billing';
 
@@ -174,6 +175,19 @@ export async function findUserByEmail(env: Env, email: string): Promise<(UserDat
 async function api(req: Request, env: Env, url: URL): Promise<Response> {
   const p = url.pathname;
 
+  // Chave mestra errada várias vezes seguidas: bloqueia por 15 minutos (contra quem tenta adivinhar).
+  if (req.headers.get('x-master-key')) {
+    const k = 'master:' + clientIp(req);
+    if (await blocked(env, [[k, 5]])) return json({ error: TOO_MANY }, 429);
+    if (!isMaster(env, req)) await addFail(env, [k]);
+  }
+
+  // Avisos da proteção de scripts (CSP em observação).
+  if (p === '/api/csp-report' && req.method === 'POST') {
+    await saveCspReport(env, req).catch(() => undefined);
+    return new Response(null, { status: 204 });
+  }
+
   // Dados públicos da loja para a tela de login (nome).
   if (p === '/api/store' && req.method === 'GET') {
     const slug = (url.searchParams.get('slug') || '').toLowerCase();
@@ -237,6 +251,11 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
   // Login, passo 2: o aparelho manda a senha já embaralhada (PBKDF2) e recebe o acesso da loja.
   if (p === '/api/login' && req.method === 'POST') {
     const body = await req.json<{ slug?: string; login?: string; email?: string; passHash?: string }>();
+    // Limite de senhas erradas a cada 15 minutos: 8 por conta na mesma internet e 30 por internet.
+    // (Por internet, para ninguém conseguir travar a conta de outra pessoa errando a senha de propósito.)
+    const ip = clientIp(req);
+    const who = `login:${ip}:${(body.slug || '').toLowerCase()}:${(body.email || body.login || '').trim().toLowerCase()}`;
+    if (await blocked(env, [[who, 8], ['loginip:' + ip, 30]])) return json({ error: TOO_MANY }, 429);
     let slug = (body.slug || '').toLowerCase();
     let u: UserData | null = null;
     if (slug) {
@@ -245,7 +264,11 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
       const f = await findUserByEmail(env, (body.email || body.login || '').trim().toLowerCase());
       if (f) { u = f; slug = f.storeId; }
     }
-    if (!u || !safeEqual(body.passHash || '', u.passHash)) return json({ error: 'E-mail ou senha incorretos' }, 401);
+    if (!u || !safeEqual(body.passHash || '', u.passHash)) {
+      await addFail(env, [who, 'loginip:' + ip]);
+      return json({ error: 'E-mail ou senha incorretos' }, 401);
+    }
+    await clearFails(env, who);
     const s = await getStore(env, slug);
     return json({ slug, storeName: s?.name, token: await makeToken(env, slug), user: { id: u.id, name: u.name, role: u.role }, license: s ? licenseOf(env, s) : null });
   }
@@ -374,12 +397,12 @@ export default {
       if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
       if (!env.API_KEY) return json({ error: 'Servidor sem chave mestra configurada' }, 500);
       try {
-        return await api(req, env, url);
+        return withSecurity(await api(req, env, url));
       } catch (e) {
         return json({ error: e instanceof Error ? e.message : 'Erro' }, 500);
       }
     }
     // Site: arquivos que existem já saem direto. Qualquer outra tela (/pdv, /produtos…) abre o app.
-    return env.ASSETS.fetch(new Request(`${url.origin}/`, { headers: req.headers }));
+    return withSecurity(await env.ASSETS.fetch(new Request(`${url.origin}/`, { headers: req.headers })));
   },
 };

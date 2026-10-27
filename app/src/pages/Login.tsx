@@ -8,6 +8,7 @@ import { hashPassword } from '../lib/auth';
 import { DEFAULT_THEME } from '../lib/theme';
 import { Logo, SyncBadge } from '../components/ui';
 import { trackSignup, initTracking } from '../lib/tracking';
+import { CookieBanner } from '../components/CookieBanner';
 import { IS_STORE_APP, STORE_SLUG, api, openStore, leaveStore, slugify, storeLink, goHome } from '../lib/store';
 
 export function Brand({ title, subtitle, logo = true }: { title: string; subtitle?: string; logo?: boolean }) {
@@ -245,6 +246,7 @@ export function StartPage({ initialMode = 'enter' }: { initialMode?: 'enter' | '
 
   return (
     <div className="login">
+      <CookieBanner />
       <Brand title="Vision PDV" subtitle="Sistema de caixa" logo={false} />
       <div className="login-form">
         <form onSubmit={create}>

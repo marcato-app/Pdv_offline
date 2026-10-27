@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getPlatform, whatsLink, type PlatformInfo } from '../lib/platform';
 import { money } from '../lib/format';
 import { initTracking } from '../lib/tracking';
+import { CookieBanner, CookieSettingsLink } from '../components/CookieBanner';
 import './landing.css';
 
 // Página de vendas (para quem chega pelo anúncio). Botões levam para /cadastro e /entrar.
@@ -398,12 +399,14 @@ export function Landing() {
             <a href="/entrar">Entrar</a>
             <a href="/termos">Termos de uso</a>
             <a href="/privacidade">Privacidade</a>
+            <CookieSettingsLink />
             {wa && <a href={wa} target="_blank" rel="noreferrer">Suporte</a>}
           </nav>
           <span className="v-dim">© {new Date().getFullYear()} Vision PDV{p?.company ? ` · ${p.company}` : ''}{p?.companyDoc ? ` · ${p.companyDoc}` : ''}</span>
         </div>
       </footer>
 
+      <CookieBanner />
       <div className={'v-sticky' + (pastHero ? ' show' : '')}>
         <div><b>7 dias grátis</b><small>sem cartão</small></div>
         <button className="v-btn primary" onClick={go('/cadastro')}>Começar <Arrow /></button>

@@ -7,7 +7,7 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
   return (
     <div className="lp">
       <header className="lp-top"><div className="lp-wrap lp-bar"><a className="lp-brand" href="/"><img src="/icon.svg" alt="" width={36} height={36} />Vision PDV</a></div></header>
-      <main className="lp-wrap legal"><h1>{title}</h1>{children}<p className="muted small">Última atualização: outubro de 2026.</p></main>
+      <main className="lp-wrap legal"><h1>{title}</h1>{children}<p className="muted small">Última atualização: 27 de outubro de 2026.</p></main>
     </div>
   );
 }
@@ -31,8 +31,10 @@ export function Termos() {
       <p>Você é responsável pelas informações cadastradas, pela guarda das senhas e pelas ações feitas pelos usuários da sua loja. Avise o suporte se suspeitar de uso indevido.</p>
       <h2>3. Teste grátis, planos e pagamento</h2>
       <p>Lojas novas têm um período de teste grátis. Depois, o uso depende da contratação de um plano. O pagamento é feito por meios de pagamento de terceiros (como Mercado Pago). Sem pagamento, o sistema bloqueia novas vendas, mas os dados continuam guardados.</p>
-      <h2>4. Cancelamento</h2>
-      <p>Você pode deixar de renovar quando quiser, sem multa. Valores de períodos já pagos não são devolvidos, exceto quando a lei exigir. Mediante pedido, os dados da loja podem ser exportados ou apagados.</p>
+      <h2>4. Cancelamento e reembolso</h2>
+      <p>Você pode cancelar a assinatura quando quiser, sem multa, pelo próprio sistema (Configurações → Assinatura) ou pelo suporte. O acesso continua até o fim do período já pago.</p>
+      <p><b>Direito de arrependimento:</b> por ser uma contratação feita pela internet, você pode desistir em até 7 dias corridos depois do primeiro pagamento e receber o valor de volta integralmente (art. 49 do Código de Defesa do Consumidor). Basta pedir pelo contato abaixo. O reembolso é feito pelo mesmo meio de pagamento, em até 10 dias úteis depois do pedido (no cartão, o prazo para aparecer na fatura depende da operadora).</p>
+      <p>Depois desses 7 dias, valores de períodos já pagos não são devolvidos, exceto quando a lei exigir ou em caso de falha nossa que impeça o uso do sistema. Mediante pedido, os dados da loja podem ser exportados ou apagados.</p>
       <h2>5. Disponibilidade e backups</h2>
       <p>Buscamos manter o serviço sempre disponível, mas podem ocorrer interrupções. O sistema faz backups automáticos no aparelho; recomendamos guardar cópias periódicas. Não nos responsabilizamos por perdas causadas por mau uso, falhas do aparelho ou de terceiros.</p>
       <h2>6. Uso adequado</h2>
@@ -56,13 +58,25 @@ export function Privacidade() {
       <p>Para prestar o serviço (sincronizar aparelhos, fazer backups, gerar relatórios e resumos), cobrar a assinatura, dar suporte e enviar avisos importantes. Não vendemos dados.</p>
       <h2>3. Quem é responsável por cada dado</h2>
       <p>Para os dados de clientes e funcionários que a loja cadastra, a loja é a controladora e o Vision PDV atua como operador, tratando os dados apenas para prestar o serviço.</p>
-      <h2>4. Compartilhamento</h2>
-      <p>Com fornecedores necessários ao serviço: hospedagem em nuvem (Cloudflare), meios de pagamento (Mercado Pago) e serviços de envio de WhatsApp escolhidos pela loja. Também quando exigido por lei.</p>
-      <h2>5. Segurança e guarda</h2>
-      <p>Os dados trafegam com criptografia (HTTPS) e o acesso é protegido por senha. Guardamos os dados enquanto a loja usar o serviço e pelo prazo exigido por lei.</p>
-      <h2>6. Seus direitos</h2>
+      <h2>4. Compartilhamento e serviços de terceiros</h2>
+      <p>Só compartilhamos dados com os fornecedores necessários ao serviço, cada um para uma finalidade:</p>
+      <ul>
+        <li><b>Cloudflare</b>: hospedagem do site e do banco de dados na nuvem.</li>
+        <li><b>Mercado Pago</b>: cobrança da assinatura e, se a loja ligar, recebimento de PIX e cartão no caixa. Os dados do cartão são digitados direto no Mercado Pago; nós não vemos nem guardamos.</li>
+        <li><b>Serviço de e-mail (Resend)</b>: envio de e-mails do sistema, como a troca de senha.</li>
+        <li><b>Serviço de WhatsApp (Z-API)</b>: avisos e resumos no WhatsApp cadastrado.</li>
+        <li><b>Meta (Facebook/Instagram) e Google</b>: só no site, e só se você aceitar os cookies, para medir os resultados dos nossos anúncios.</li>
+        <li><b>GitHub</b>: hospedagem dos arquivos de instalação do aplicativo.</li>
+      </ul>
+      <p>Também compartilhamos quando exigido por lei ou ordem judicial.</p>
+      <h2>5. Cookies</h2>
+      <p>O sistema usa o armazenamento do navegador para funcionar (manter o login, guardar os dados para uso sem internet e as suas preferências). Esses são necessários e não servem para propaganda.</p>
+      <p>No site, os cookies de medição de anúncios (Meta e Google) só são ativados se você clicar em "Aceitar" no aviso de cookies. Você pode mudar a escolha a qualquer momento pelo link "Cookies" no rodapé do site. Esses cookies nunca são usados dentro do sistema da loja nem no aplicativo.</p>
+      <h2>6. Segurança e guarda</h2>
+      <p>Os dados trafegam com criptografia (HTTPS), o acesso é protegido por senha e há bloqueio automático depois de várias tentativas de senha erradas. Cada loja só tem acesso aos próprios dados. Guardamos os dados enquanto a loja usar o serviço e pelo prazo exigido por lei; ao excluir a conta, os dados são apagados.</p>
+      <h2>7. Seus direitos</h2>
       <p>Você pode pedir acesso, correção, exportação ou exclusão dos seus dados, e informações sobre o tratamento, pelo contato abaixo.</p>
-      <h2>7. Contato</h2>
+      <h2>8. Contato</h2>
       <p>Encarregado de dados (DPO): {mail}.</p>
     </Shell>
   );
