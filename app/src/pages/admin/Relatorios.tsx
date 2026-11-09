@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, round2, type Product } from '../../lib/db';
 import { money, qtyFmt, PAYMENT_LABELS, startOfDay, dec2 } from '../../lib/format';
 import { downloadText } from '../../lib/backup';
+import { ExportReportsButton } from '../../components/ExportReports';
 
 const DAY = 86_400_000;
 type RangeKey = 'hoje' | 'ontem' | '7' | '30' | 'mes' | 'mesPassado' | 'custom';
@@ -120,7 +121,7 @@ export function Relatorios() {
 
   return (
     <>
-      <div className="page-head"><h1>Relatórios de vendas</h1><button className="btn sm ghost" onClick={exportCsv}>Exportar planilha (CSV)</button></div>
+      <div className="page-head"><h1>Relatórios de vendas</h1><div className="row"><ExportReportsButton initial="vendas" className="btn sm" /><button className="btn sm ghost" onClick={exportCsv}>Exportar planilha (CSV)</button></div></div>
       <div className="row">
         {(['hoje', 'ontem', '7', '30', 'mes', 'mesPassado', 'custom'] as RangeKey[]).map((k) => <button key={k} className={'btn sm ' + (range === k ? 'secondary' : '')} onClick={() => setRange(k)}>{RANGES[k]}</button>)}
         {range === 'custom' && <>

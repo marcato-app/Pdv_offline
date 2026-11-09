@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, save, remove, uid, round2, type Bill, type BillCategory } from '../../lib/db';
 import { money, parseNum, dec2, dateOnly, startOfDay } from '../../lib/format';
 import { Modal } from '../../components/ui';
+import { ExportReportsButton } from '../../components/ExportReports';
 
 export const BILL_CATEGORIES: Record<BillCategory, string> = {
   boleto: 'Boleto',
@@ -53,6 +54,7 @@ export function Financeiro() {
       <div className="page-head">
         <h1>Financeiro</h1>
         <div className="row">
+          <ExportReportsButton />
           <SalaryButton month={start} />
           <button className="btn primary" onClick={() => setEdit('novo')}>+ Nova conta</button>
         </div>

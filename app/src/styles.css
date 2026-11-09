@@ -461,3 +461,9 @@ html.vt.dk .pdv-list.wm::after { opacity: .12; }
 .cookie-btns button { min-height: 40px; padding: 0 16px; border-radius: 12px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,.25); background: transparent; color: #fff; }
 .cookie-btns button.primary { background: #fff; color: #0B0B0E; border-color: #fff; }
 .legal ul { padding-left: 22px; margin: 8px 0; } .legal li { margin: 4px 0; }
+/* Exportar relatórios */
+.xopt { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; cursor: pointer; background: var(--card, #fff); }
+.xopt.on { border: 1.5px solid var(--text, #111); background: var(--field, #F4F4F6); }
+.xopt input { margin-top: 3px; flex: none; accent-color: var(--primary); }
+.xopt .xt { display: flex; flex-direction: column; gap: 2px; }
+.xopt .xt b { font-size: 16px; }
