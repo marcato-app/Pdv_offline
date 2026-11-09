@@ -31,6 +31,10 @@ jobs:
         working-directory: worker
         run: |
           npm ci
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "Falta o segredo CLOUDFLARE_API_TOKEN no GitHub"; exit 1; }
           npx wrangler d1 execute vision-pdv-db --remote --file=schema.sql
           npx wrangler deploy
-          echo "${{ secrets.VISION_API_KEY }}" | npx wrangler secret put API_KEY
+          # Só troca a chave mestra se o segredo existir (vazio apagaria a chave atual).
+          if [ -n "$VISION_API_KEY" ]; then echo "$VISION_API_KEY" | npx wrangler secret put API_KEY; fi
+        env:
+          VISION_API_KEY: ${{ secrets.VISION_API_KEY }}
