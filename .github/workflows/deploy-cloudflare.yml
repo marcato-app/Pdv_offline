@@ -1,12 +1,12 @@
 name: Publicar na Cloudflare
 
 # Publica o site + servidor em https://visionpdv.marcatoapp.com.br
-# sempre que a branch main muda (ou manualmente na aba Actions).
+# sempre que a branch main ou claude/pdv-inicial muda (ou manualmente na aba Actions).
 # Segredos necessários (Settings > Secrets and variables > Actions):
 #   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID e VISION_API_KEY (a chave de acesso dos caixas)
 on:
   push:
-    branches: [main]
+    branches: [main, claude/pdv-inicial]
   workflow_dispatch:
 
 concurrency: deploy-cloudflare
